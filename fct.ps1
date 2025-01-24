@@ -228,9 +228,9 @@ function Limpeza-Labs {
 
         # 1. Limpeza de arquivos temporários
         Write-Host "├─ Limpando arquivos temporários..." -ForegroundColor Yellow
-        Get-ChildItem "C:\Users\*\AppData\Local\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        Get-ChildItem "C:\Users\*\Downloads\*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "desktop.ini" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        Get-ChildItem "C:\Users\*\Desktop\*" -ErrorAction SilentlyContinue | Where-Object { $_.Extension -ne ".lnk" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        Get-ChildItem "C:\Users\*\AppData\Local\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force 
+        Get-ChildItem "C:\Users\*\Downloads\*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "desktop.ini" } | Remove-Item -Recurse -Force 
+        Get-ChildItem "C:\Users\*\Desktop\*" -ErrorAction SilentlyContinue | Where-Object { $_.Extension -ne ".lnk" } | Remove-Item -Recurse -Force 
 
         # 2. Reset de navegadores
         Write-Host "├─ Resetando navegadores..." -ForegroundColor Yellow
@@ -241,21 +241,21 @@ function Limpeza-Labs {
         )
         foreach ($browser in $browsers) {
             if (Test-Path $browser) {
-                Remove-Item "$browser\*" -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item "$browser\*" -Recurse -Force 
             }
         }
 
         # 3. Reset de energia e rede
         Write-Host "├─ Restaurando configurações de energia e rede..." -ForegroundColor Yellow
-        powercfg /restoredefaultschemes | Out-Null
-        netsh winsock reset | Out-Null
-        netsh int ip reset | Out-Null
-        netsh advfirewall reset | Out-Null
-        ipconfig /flushdns | Out-Null
+        powercfg /restoredefaultschemes 
+        netsh winsock reset 
+        netsh int ip reset 
+        netsh advfirewall reset 
+        ipconfig /flushdns
 
         # 4. Remoção de contas Microsoft 
         Write-Host "├─ Removendo contas Microsoft..." -ForegroundColor Yellow
-        Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | 
+        Get-CimInstance -ClassName Win32_UserAccount | 
         Where-Object { 
             $_.Caption -like "*@*" -and $_.LocalAccount -eq $false
         } | ForEach-Object {
@@ -264,7 +264,7 @@ function Limpeza-Labs {
 
         # 5. Restauração de temas visuais
         Write-Host "├─ Restaurando temas padrão..." -ForegroundColor Yellow
-        Get-ChildItem "C:\Users\*\AppData\Local\Microsoft\Windows\Themes\*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+        Get-ChildItem "C:\Users\*\AppData\Local\Microsoft\Windows\Themes\*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse
         reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes" /v CurrentTheme /f 2>$null
 
         # 6. Limpeza final (Versão Aprimorada)
@@ -272,7 +272,7 @@ function Limpeza-Labs {
         Start-Process cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
         
         Write-Host "│  Esvaziando Lixeira..." -ForegroundColor DarkGray
-        Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+        Clear-RecycleBin -Force 
 		
 
         Write-Host "│  Verificando saúde do sistema..." -ForegroundColor DarkGray
