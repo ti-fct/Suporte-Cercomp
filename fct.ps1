@@ -49,7 +49,7 @@ function Invoke-PressKey {
 function Testar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         Write-Host "[⚠] Elevando privilégios..." -ForegroundColor Yellow
-        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/ti-fct/scritps/refs/heads/master/fct.ps1 | iex`"" -Verb RunAs
+        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fct.ps1 | iex`"" -Verb RunAs
         exit
     }
 }
