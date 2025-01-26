@@ -228,8 +228,7 @@ function Limpeza-Labs {
         # 1. Limpeza de arquivos do labs
         Write-Host "├─ Limpando arquivos dos labs (Downloads e Desktop).." -ForegroundColor Yellow
         Get-ChildItem "C:\Users\*\Downloads\*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "desktop.ini" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        Get-ChildItem "C:\Users\*\Desktop\*" -ErrorAction SilentlyContinue | Where-Object { $_.Extension -ne ".lnk" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
- 
+        Get-ChildItem "C:\Users\*\Desktop\*" -ErrorAction SilentlyContinue | Where-Object { (-not $_.PSIsContainer) -and ($_.Extension -ne ".lnk") } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue 
 
         # 2. Reset de energia e rede
         Write-Host "├─ Restaurando configurações de energia e rede..." -ForegroundColor Yellow
@@ -263,9 +262,6 @@ function Limpeza-Labs {
 
         # Lista de cleaners principais para laboratórios
         $cleaners = @(
-            'system.clipboard',
-            'system.muicache',
-            'system.prefetch',
             'system.recycle_bin',
             'system.tmp',
             'system.updates',
