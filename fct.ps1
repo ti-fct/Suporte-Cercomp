@@ -265,7 +265,6 @@ function Limpeza-Labs {
         $cleaners = @(
             'system.recycle_bin',
             'system.tmp',
-            'system.memory_dumps',
             'microsoft_edge.cache',
             'microsoft_edge.cookies',
             'microsoft_edge.dom',
@@ -275,7 +274,7 @@ function Limpeza-Labs {
             'google_chrome.history',
             'firefox.cache',
             'firefox.cookies',
-            'firefox.history',
+            'firefox.url_history',
             'windows_explorer.recent_documents',
             'windows_explorer.search_history',
             'windows_explorer.thumbnails'
