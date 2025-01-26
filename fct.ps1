@@ -266,9 +266,10 @@ function Limpeza-Labs {
             'system.*',
             'microsoft_edge.*',
             'google_chrome.*',
-            'firefox.*',            
-            'windows_explorer.*',
-            'windows_defender.*'
+            'firefox.*',      
+            'windows_explorer.mru',
+            'windows_explorer.recent_documents',
+            'windows_explorer.search_history'
         )
 
         # Comando corrigido com lista de cleaners
