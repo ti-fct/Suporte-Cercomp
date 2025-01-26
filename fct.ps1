@@ -274,8 +274,7 @@ function Limpeza-Labs {
             'google_chrome.history',
             'firefox.cache',
             'firefox.cookies',
-            'firefox.url_history',
-            'windows_explorer.recent_documents'
+            'firefox.url_history'
         )
 
         # Execução com tratamento aprimorado
