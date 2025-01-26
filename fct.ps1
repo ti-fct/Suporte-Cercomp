@@ -263,6 +263,7 @@ function Limpeza-Labs {
 
         # Lista de cleaners principais para laboratórios
         $cleaners = @(
+	    'system.*',
             'microsoft_edge.*',
             'google_chrome.*',
             'firefox.*',      
