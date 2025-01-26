@@ -263,7 +263,6 @@ function Limpeza-Labs {
 
         # Lista de cleaners principais para laboratórios
         $cleaners = @(
-            'system.*',
             'microsoft_edge.*',
             'google_chrome.*',
             'firefox.*',      
@@ -273,7 +272,7 @@ function Limpeza-Labs {
         )
 
         # Comando corrigido com lista de cleaners
-        & $bleachbitPath --clean $cleaners
+        & $bleachbitPath --overwrite --clean $cleaners --debug
         if ($LASTEXITCODE -ne 0) {
             throw "Erro no BleachBit (Código: $LASTEXITCODE)"
         }
