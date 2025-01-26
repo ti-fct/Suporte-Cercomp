@@ -298,8 +298,12 @@ function Limpeza-Labs {
         catch {
             Write-Host "[❗] Falha no BleachBit: $($_.Exception.Message)" -ForegroundColor Red
         }
+		
+		# 6. Limpeza final
+        Write-Host "├─ Executando limpeza final..." -ForegroundColor Yellow
+        Start-Process -FilePath cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
 
-        # 6. Verificação de saúde do sistema
+        # 7. Verificação de saúde do sistema
         Write-Host "│  Verificando saúde do sistema..." -ForegroundColor DarkGray
         try {
             DISM /Online /Cleanup-Image /RestoreHealth | Out-Null
