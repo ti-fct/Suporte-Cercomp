@@ -256,10 +256,13 @@ function Limpeza-Labs {
         # 5. Limpeza Avançada com BleachBit
         Write-Host "├─ Executando BleachBit para limpeza profunda..." -ForegroundColor Yellow
         $bleachbitPath = "\\fog\gpos\BleachBit\bleachbit_console.exe"
+        
         if (-NOT (Test-Path $bleachbitPath)) {
             throw "BleachBit não encontrado em $bleachbitPath"
         }
-        & $bleachbitPath --clean=* --yes
+        
+        # Novo comando válido usando --preset para limpeza completa
+        & $bleachbitPath --preset=default --clean --yes
         if ($LASTEXITCODE -ne 0) {
             throw "Erro no BleachBit (Código: $LASTEXITCODE)"
         }
