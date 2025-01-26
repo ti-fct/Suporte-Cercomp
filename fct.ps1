@@ -71,8 +71,8 @@ function Listar-ProgramasInstalados {
         } | Sort-Object DisplayName
 
         $apps | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate |
-            Format-Table -AutoSize |
-            Out-File -FilePath $filePath -Width 200
+        Format-Table -AutoSize |
+        Out-File -FilePath $filePath -Width 200
 
         Write-Host "[📂] Relatório salvo em: $filePath" -ForegroundColor Green
         Write-Host "[ℹ] Programas encontrados: $($apps.Count)" -ForegroundColor Cyan
@@ -196,9 +196,9 @@ function Reiniciar-LojaWindows {
         Write-Host "`n[🛠] Iniciando reset avançado da Microsoft Store..." -ForegroundColor Yellow
 
         $etapas = @(
-            @{Nome = "Resetando ACLs"; Comando = { icacls "C:\Program Files\WindowsApps" /reset /t /c /q | Out-Null }},
-            @{Nome = "Executando WSReset"; Comando = { Start-Process wsreset -NoNewWindow }},
-            @{Nome = "Finalizando processos"; Comando = { taskkill /IM wsreset.exe /IM WinStore.App.exe /F | Out-Null }}
+            @{Nome = "Resetando ACLs"; Comando = { icacls "C:\Program Files\WindowsApps" /reset /t /c /q | Out-Null } },
+            @{Nome = "Executando WSReset"; Comando = { Start-Process wsreset -NoNewWindow } },
+            @{Nome = "Finalizando processos"; Comando = { taskkill /IM wsreset.exe /IM WinStore.App.exe /F | Out-Null } }
         )
 
         foreach ($etapa in $etapas) {
@@ -255,27 +255,49 @@ function Limpeza-Labs {
         # 5. Limpeza Avançada com BleachBit
         Write-Host "├─ Executando BleachBit para limpeza profunda..." -ForegroundColor Yellow
         $bleachbitPath = "\\fog\gpos\BleachBit\bleachbit_console.exe"
-        
-        if (-NOT (Test-Path $bleachbitPath)) {
-            throw "BleachBit não encontrado em $bleachbitPath"
+
+        # Verificação reforçada do executável
+        if (-NOT (Test-Path $bleachbitPath -PathType Leaf)) {
+            throw "[❗] BleachBit não encontrado em: $bleachbitPath"
         }
 
-        # Lista de cleaners principais para laboratórios
+        # Cleaners ajustados e validação
         $cleaners = @(
             'system.recycle_bin',
             'system.tmp',
-            'system.updates',
-            'microsoft_edge.*',
-            'google_chrome.*',
-            'firefox.*',
+            'system.memory_dumps',
+            'microsoft_edge.cache',
+            'microsoft_edge.cookies',
+            'microsoft_edge.dom',
+            'microsoft_edge.history',
+            'google_chrome.cache',
+            'google_chrome.cookies',
+            'google_chrome.history',
+            'firefox.cache',
+            'firefox.cookies',
+            'firefox.history',
             'windows_explorer.recent_documents',
-            'windows_explorer.search_history'
+            'windows_explorer.search_history',
+            'windows_explorer.thumbnails'
         )
 
-        # Comando corrigido com lista de cleaners
-        & $bleachbitPath --overwrite --clean $cleaners
-        if ($LASTEXITCODE -ne 0) {
-            throw "Erro no BleachBit (Código: $LASTEXITCODE)"
+        # Execução com tratamento aprimorado
+        try {
+            $process = Start-Process -FilePath $bleachbitPath `
+                -ArgumentList "--clean --overwrite $($cleaners -join ' ')" `
+                -NoNewWindow `
+                -PassThru `
+                -Wait `
+                -ErrorAction Stop
+
+            if ($process.ExitCode -ne 0) {
+                throw "Erro no BleachBit (Código: $($process.ExitCode))"
+            }
+    
+            Write-Host "│  ✔ BleachBit executado com sucesso" -ForegroundColor DarkGreen
+        }
+        catch {
+            Write-Host "[❗] Falha no BleachBit: $($_.Exception.Message)" -ForegroundColor Red
         }
 
         # 6. Verificação de saúde do sistema
