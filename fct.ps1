@@ -275,9 +275,7 @@ function Limpeza-Labs {
             'firefox.cache',
             'firefox.cookies',
             'firefox.url_history',
-            'windows_explorer.recent_documents',
-            'windows_explorer.search_history',
-            'windows_explorer.thumbnails'
+            'windows_explorer.recent_documents'
         )
 
         # Execução com tratamento aprimorado
