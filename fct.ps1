@@ -272,10 +272,7 @@ function Limpeza-Labs {
             'microsoft_edge.*',
             'google_chrome.*',
             'firefox.*',      
-            'windows_explorer.*',
-            'winapp2_applications.notepad',
-            'winapp2_windows.*',
-            'winapp2_windows_store.*'
+            'windows_explorer.*'
         )
 
         # Comando corrigido com lista de cleaners
