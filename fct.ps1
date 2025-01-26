@@ -263,17 +263,23 @@ function Limpeza-Labs {
 
         # Lista de cleaners principais para laboratórios
         $cleaners = @(
-	    'system.*',
+            'system.clipboard',
+            'system.muicache',
+            'system.prefetch',
+            'system.recycle_bin',
+            'system.tmp',
+            'system.updates',
             'microsoft_edge.*',
             'google_chrome.*',
             'firefox.*',      
-            'windows_explorer.mru',
-            'windows_explorer.recent_documents',
-            'windows_explorer.search_history'
+            'windows_explorer.*',
+            'winapp2_applications.notepad',
+            'winapp2_windows.*',
+            'winapp2_windows_store.*'
         )
 
         # Comando corrigido com lista de cleaners
-        & $bleachbitPath --overwrite --clean $cleaners --debug
+        & $bleachbitPath --overwrite --clean $cleaners
         if ($LASTEXITCODE -ne 0) {
             throw "Erro no BleachBit (Código: $LASTEXITCODE)"
         }
