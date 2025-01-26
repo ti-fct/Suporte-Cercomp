@@ -7,7 +7,7 @@
 .DESCRIPTION
     Execute com: irm RAW_URL_MAIN | iex
 .NOTES
-    Versão: 2.6
+    Versão: 2.7
     Autor: Departamento de TI UFG
 #>
 
@@ -25,7 +25,6 @@ function Show-Menu {
     
     Universidade Federal de Goiás
     Faculdade de Ciências e Tecnologia
-
 "@ -ForegroundColor Blue
 
     Write-Host "`n          Campus Aparecida`n" -ForegroundColor Yellow
@@ -61,7 +60,7 @@ function Listar-ProgramasInstalados {
         $filePath = Join-Path -Path "C:\" -ChildPath $fileName
 
         Write-Host "`n[🔍] Coletando dados de programas instalados..." -ForegroundColor Yellow
-        
+
         $registryPaths = @(
             "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
             "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
@@ -90,7 +89,7 @@ function Alterar-NomeComputador {
     try {
         $currentName = $env:COMPUTERNAME
         Write-Host "`n[💻] Nome atual do computador: $currentName" -ForegroundColor Cyan
-        
+
         do {
             $newName = Read-Host "`nDigite o novo nome (15 caracteres alfanuméricos)"
         } until ($newName -match '^[a-zA-Z0-9-]{1,15}$')
@@ -98,7 +97,7 @@ function Alterar-NomeComputador {
         if ((Read-Host "`nConfirma alteração para '$newName'? (S/N)") -eq 'S') {
             Rename-Computer -NewName $newName -Force -ErrorAction Stop
             Write-Host "[✅] Nome alterado com sucesso!" -ForegroundColor Green
-            
+
             if ((Read-Host "`nReiniciar agora? (S/N)") -eq 'S') {
                 shutdown /r /f /t 15
                 exit
@@ -116,7 +115,7 @@ function Alterar-NomeComputador {
 function Aplicar-GPOsFCT {
     try {
         Write-Host "`n[🏛] Conectando ao servidor de políticas..." -ForegroundColor DarkMagenta
-        
+
         $gpoPaths = @{
             User    = "\\fog\gpos\user.txt"
             Machine = "\\fog\gpos\machine.txt"
@@ -145,7 +144,7 @@ function Aplicar-GPOsFCT {
 function Restaurar-PoliticasPadrao {
     try {
         Write-Host "`n[🧹] Iniciando restauração de segurança..." -ForegroundColor DarkYellow
-        
+
         $confirm = Read-Host "`nEsta operação REMOVERÁ todas as políticas personalizadas. Continuar? (S/N)"
         if ($confirm -ne 'S') { return }
 
@@ -176,7 +175,7 @@ function Atualizar-PoliticasGrupo {
     try {
         Write-Host "`n[🔄] Forçando atualização de políticas..." -ForegroundColor Yellow
         $output = gpupdate /force 2>&1
-        
+
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[✅] Atualização concluída: $($output -join ' ')" -ForegroundColor Green
         }
@@ -195,7 +194,7 @@ function Atualizar-PoliticasGrupo {
 function Reiniciar-LojaWindows {
     try {
         Write-Host "`n[🛠] Iniciando reset avançado da Microsoft Store..." -ForegroundColor Yellow
-        
+
         $etapas = @(
             @{Nome = "Resetando ACLs"; Comando = { icacls "C:\Program Files\WindowsApps" /reset /t /c /q | Out-Null }},
             @{Nome = "Executando WSReset"; Comando = { Start-Process wsreset -NoNewWindow }},
@@ -205,13 +204,13 @@ function Reiniciar-LojaWindows {
         foreach ($etapa in $etapas) {
             Write-Host "├─ $($etapa.Nome)..." -ForegroundColor Cyan
             & $etapa.Comando
-            
+
             if ($etapa.Nome -eq "Executando WSReset") {
                 Write-Host "│  Aguardando conclusão..." -ForegroundColor DarkGray
                 Start-Sleep -Seconds 30
             }
         }
-        
+
         Write-Host "[✅] Loja reinicializada com sucesso!`n" -ForegroundColor Green
     }
     catch {
@@ -226,55 +225,46 @@ function Limpeza-Labs {
     try {
         Write-Host "`n[🧼] Iniciando limpeza completa do Windows e usuários..." -ForegroundColor DarkCyan
 
-        # 1. Limpeza de arquivos temporários
-        Write-Host "├─ Limpando arquivos temporários..." -ForegroundColor Yellow
-        Get-ChildItem "C:\Users\*\AppData\Local\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force 
-        Get-ChildItem "C:\Users\*\Downloads\*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "desktop.ini" } | Remove-Item -Recurse -Force 
-        Get-ChildItem "C:\Users\*\Desktop\*" -ErrorAction SilentlyContinue | Where-Object { $_.Extension -ne ".lnk" } | Remove-Item -Recurse -Force 
+        # 1. Limpeza de arquivos do labs
+        Write-Host "├─ Limpando arquivos dos labs (Downloads e Desktop).." -ForegroundColor Yellow
+        Get-ChildItem "C:\Users\*\Downloads\*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne "desktop.ini" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        Get-ChildItem "C:\Users\*\Desktop\*" -ErrorAction SilentlyContinue | Where-Object { $_.Extension -ne ".lnk" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+ 
 
-        # 2. Reset de navegadores
-        Write-Host "├─ Resetando navegadores..." -ForegroundColor Yellow
-        $browsers = @(
-            "$env:LOCALAPPDATA\Google\Chrome",
-            "$env:LOCALAPPDATA\Microsoft\Edge",
-            "$env:APPDATA\Mozilla\Firefox"
-        )
-        foreach ($browser in $browsers) {
-            if (Test-Path $browser) {
-                Remove-Item "$browser\*" -Recurse -Force 
-            }
-        }
-
-        # 3. Reset de energia e rede
+        # 2. Reset de energia e rede
         Write-Host "├─ Restaurando configurações de energia e rede..." -ForegroundColor Yellow
-        powercfg /restoredefaultschemes 
-        netsh winsock reset 
-        netsh int ip reset 
-        netsh advfirewall reset 
-        ipconfig /flushdns
+        powercfg /restoredefaultschemes | Out-Null
+        netsh winsock reset | Out-Null
+        netsh int ip reset | Out-Null
+        netsh advfirewall reset | Out-Null
+        ipconfig /flushdns | Out-Null
 
-        # 4. Remoção de contas Microsoft 
+        # 3. Remoção de contas Microsoft 
         Write-Host "├─ Removendo contas Microsoft..." -ForegroundColor Yellow
-        Get-CimInstance -ClassName Win32_UserAccount | 
+        Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | 
         Where-Object { 
             $_.Caption -like "*@*" -and $_.LocalAccount -eq $false
         } | ForEach-Object {
             net user $_.Name /delete 2>$null
         }
 
-        # 5. Restauração de temas visuais
+        # 4. Restauração de temas visuais
         Write-Host "├─ Restaurando temas padrão..." -ForegroundColor Yellow
-        Get-ChildItem "C:\Users\*\AppData\Local\Microsoft\Windows\Themes\*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse
+        Get-ChildItem "C:\Users\*\AppData\Local\Microsoft\Windows\Themes\*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
         reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes" /v CurrentTheme /f 2>$null
 
-        # 6. Limpeza final (Versão Aprimorada)
-        Write-Host "├─ Executando limpeza final..." -ForegroundColor Yellow
-        Start-Process cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
-        
-        Write-Host "│  Esvaziando Lixeira..." -ForegroundColor DarkGray
-        Clear-RecycleBin -Force 
-		
+        # 5. Limpeza Avançada com BleachBit
+        Write-Host "├─ Executando BleachBit para limpeza profunda..." -ForegroundColor Yellow
+        $bleachbitPath = "\\fog\gpos\BleachBit\bleachbit_console.exe"
+        if (-NOT (Test-Path $bleachbitPath)) {
+            throw "BleachBit não encontrado em $bleachbitPath"
+        }
+        & $bleachbitPath --clean=* --yes
+        if ($LASTEXITCODE -ne 0) {
+            throw "Erro no BleachBit (Código: $LASTEXITCODE)"
+        }
 
+        # 6. Verificação de saúde do sistema
         Write-Host "│  Verificando saúde do sistema..." -ForegroundColor DarkGray
         try {
             DISM /Online /Cleanup-Image /RestoreHealth | Out-Null
