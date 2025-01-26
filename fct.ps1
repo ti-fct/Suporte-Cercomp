@@ -261,8 +261,8 @@ function Limpeza-Labs {
             throw "BleachBit não encontrado em $bleachbitPath"
         }
         
-        # Novo comando válido usando --preset para limpeza completa
-        & $bleachbitPath --preset=default --clean --yes
+        # Comando corrigido (--preset não aceita valores)
+        & $bleachbitPath --clean --preset --yes
         if ($LASTEXITCODE -ne 0) {
             throw "Erro no BleachBit (Código: $LASTEXITCODE)"
         }
