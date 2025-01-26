@@ -6,14 +6,21 @@ Este é um script PowerShell desenvolvido pelo Departamento de TI da Universidad
 
 O script oferece as seguintes funcionalidades:
 
-1. **Listar Programas Instalados**: Gera um relatório de todos os programas instalados no computador e salva o resultado em um arquivo de texto.
-2. **Alterar Nome do Computador**: Permite alterar o nome do computador, com validação de entrada e opção de reinicialização.
-3. **Aplicar GPOs da FCT**: Aplica políticas de grupo (GPOs) específicas da Faculdade de Ciências e Tecnologia (FCT) a partir de um servidor de políticas.
-4. **Restaurar GPOs Padrão do Windows**: Remove todas as políticas de grupo personalizadas e restaura as configurações padrão do Windows.
-5. **Atualizar GPOs**: Força a atualização das políticas de grupo após aplicar ou restaurar as GPOs.
-6. **Reset Windows Store**: Reinicializa a Microsoft Store, útil após a aplicação de GPOs que afetam a loja.
-7. **Limpeza Geral do Windows (Beta)**: Executa uma limpeza completa do sistema, incluindo arquivos temporários, reset de navegadores, restauração de configurações de energia e rede, remoção de contas Microsoft, e mais.
-8. **Reiniciar Computador**: Reinicia o computador após confirmação do usuário.
+1. **📜 Listar Programas Instalados**: Gera um relatório de todos os programas instalados no computador e salva o resultado em um arquivo de texto.
+2. **💻 Alterar Nome do Computador**: Permite alterar o nome do computador, com validação de entrada e opção de reinicialização.
+3. **🏛 Aplicar GPOs da FCT**: Aplica políticas de grupo (GPOs) específicas da Faculdade de Ciências e Tecnologia (FCT) a partir de um servidor de políticas.
+4. **🧹 Restaurar GPOs Padrão do Windows**: Remove todas as políticas de grupo personalizadas e restaura as configurações padrão do Windows.
+5. **🔄 Atualizar GPOs**: Força a atualização das políticas de grupo após aplicar ou restaurar as GPOs.
+6. **🛒 Reset Windows Store**: Reinicializa a Microsoft Store, útil após a aplicação de GPOs que afetam a loja.
+7. **🧼 Labs Limpeza Geral do Windows (Beta)**: Executa uma limpeza completa do sistema, incluindo:
+   - Limpeza de arquivos temporários e pastas de usuários (Downloads e Desktop).
+   - Reset de configurações de energia e rede.
+   - Remoção de contas Microsoft.
+   - Restauração de temas visuais.
+   - Limpeza avançada com BleachBit.
+   - Verificação de saúde do sistema com DISM e SFC.
+8. **🚀 Reiniciar Computador**: Reinicia o computador após confirmação do usuário.
+9. **❌ Sair do Script**: Encerra a execução do script.
 
 ## Como Utilizar
 
@@ -28,4 +35,4 @@ O script oferece as seguintes funcionalidades:
 2. **Executar o Script**: Execute o script com o seguinte comando no PowerShell:
 
    ```powershell
-   irm URL_DO_SCRIPT_NO_GIT | iex
+   irm RAW_URL_MAIN | iex
