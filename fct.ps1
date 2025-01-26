@@ -266,11 +266,9 @@ function Limpeza-Labs {
             'system.*',
             'microsoft_edge.*',
             'google_chrome.*',
+            'firefox.*',            
             'windows_explorer.*',
-            'windows_defender.*',
-            'windows_media_player.*',
-            'recycle_bin',
-            'free_disk_space'
+            'windows_defender.*'
         )
 
         # Comando corrigido com lista de cleaners
