@@ -260,9 +260,21 @@ function Limpeza-Labs {
         if (-NOT (Test-Path $bleachbitPath)) {
             throw "BleachBit não encontrado em $bleachbitPath"
         }
-        
-        # Comando corrigido (--preset não aceita valores)
-        & $bleachbitPath --clean --preset --yes
+
+        # Lista de cleaners principais para laboratórios
+        $cleaners = @(
+            'system.*',
+            'microsoft_edge.*',
+            'google_chrome.*',
+            'windows_explorer.*',
+            'windows_defender.*',
+            'windows_media_player.*',
+            'recycle_bin',
+            'free_disk_space'
+        )
+
+        # Comando corrigido com lista de cleaners
+        & $bleachbitPath --clean $cleaners
         if ($LASTEXITCODE -ne 0) {
             throw "Erro no BleachBit (Código: $LASTEXITCODE)"
         }
