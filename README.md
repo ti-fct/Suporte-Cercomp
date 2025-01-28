@@ -36,3 +36,8 @@ O script oferece as seguintes funcionalidades:
 
    ```powershell
    irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fct.ps1 | iex
+   ```
+
+   ```powershell
+   Set-SmbClientConfiguration -EnableInsecureGuestLogons $true
+   ```
