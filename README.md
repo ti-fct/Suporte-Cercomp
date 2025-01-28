@@ -35,4 +35,4 @@ O script oferece as seguintes funcionalidades:
 2. **Executar o Script**: Execute o script com o seguinte comando no PowerShell:
 
    ```powershell
-   irm RAW_URL_MAIN | iex
+   irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fct.ps1 iex
