@@ -1,21 +1,30 @@
 #Requires -Version 5
 
+<#
+.SYNOPSIS
+    Sistema de avisos para laboratórios - FCT/UFG
+.DESCRIPTION
+    Exibe informações institucionais e de segurança no canto superior direito
+.NOTES
+    Versão: 4.0
+    Autor: Departamento de TI FCT/UFG (Diego)
+#>
+
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# Função simplificada e robusta para obter IP
 function Get-LocalIP {
     try {
         $ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*' -ErrorAction Stop | 
             Where-Object { $_.PrefixOrigin -ne 'WellKnown' }).IPAddress
-        return ($ip -split '\n')[0]  # Pega o primeiro IP se houver múltiplos
+        return ($ip -split '\n')[0]
     }
     catch {
         return "IP não detectado"
     }
 }
 
-# Mensagem formatada
 $message = @"
 LABORATÓRIO DE INFORMÁTICA - FCT/UFG
 ────────────────────────────────────
@@ -25,6 +34,7 @@ IP Local: $(Get-LocalIP)
 [REGRAS DE USO]
 • Uso exclusivo para atividades acadêmicas
 • Proibido alterar configurações do sistema
+• Não consumir alimentos no labortatório
 
 [PROCEDIMENTOS AO SAIR]
 1. Encerre todos os aplicativos
@@ -32,8 +42,6 @@ IP Local: $(Get-LocalIP)
 3. Remova dispositivos externos
 
 [SUPORTE TÉCNICO]
-Sistema: $((Get-CimInstance Win32_OperatingSystem).Caption)
-Último boot: $((Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('dd/MM HH:mm'))
 Chamados: chamado.ufg.br
 "@
 
@@ -41,50 +49,47 @@ Chamados: chamado.ufg.br
 $font = New-Object Drawing.Font("Segoe UI", 10, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::Black
+$shadowColor = [System.Drawing.Color]::FromArgb(30, 30, 30)  # Cinza escuro
 $shadowBrush = New-Object Drawing.SolidBrush($shadowColor)
-
-# Cálculo dinâmico de tamanho
-$lineCount = ($message -split "\r?\n").Count
-$formHeight = 40 + ($lineCount * 24)
 
 # Configuração da janela
 $form = New-Object Windows.Forms.Form
 $form.FormBorderStyle = 'None'
-$form.BackColor = 'Magenta'
-$form.TransparencyKey = 'Magenta'
+$form.BackColor = 'Lime'  # Cor alterada para melhor transparência
+$form.TransparencyKey = 'Lime'
 $form.TopMost = $true
-$form.Size = New-Object Drawing.Size(400, $formHeight)
-$form.StartPosition = 'Manual'
+$form.ShowInTaskbar = $false  # Remove da barra de tarefas
 
-# Posicionamento correto usando WorkingArea
+# Cálculo de tamanho
+$lineCount = ($message -split "\r?\n").Count
+$form.Size = New-Object Drawing.Size(400, (40 + ($lineCount * 24)))
+
+# Posicionamento
 $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width
 $form.Location = New-Object Drawing.Point(($screenWidth - 420), 20)
 
-# Label com renderização otimizada
 $label = New-Object Windows.Forms.Label
-$label.Font = $font
-$label.ForeColor = $textColor
 $label.Size = $form.Size
+$label.ForeColor = $textColor
 
 $label.Add_Paint({
     param($sender, $e)
     
+    $e.Graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
     $y = 10
-    $lines = $message -split "\r?\n"
     $format = New-Object Drawing.StringFormat
-    $format.Alignment = [Drawing.StringAlignment]::Far  # Alinhamento à direita
+    $format.Alignment = [Drawing.StringAlignment]::Far
     
-    foreach ($line in $lines) {
+    foreach ($line in ($message -split "\r?\n")) {
         $currentFont = if ($line -match "LABORATÓRIO|\[.*\]") { $boldFont } else { $font }
-        $xPosition = $sender.Width - 20  # Margem direita de 20px
-
-        # Sombra
+        $posX = $sender.Width - 15
+        
+        # Sombra suave
         $e.Graphics.DrawString(
             $line,
             $currentFont,
             $shadowBrush,
-            [Drawing.PointF]::new($xPosition - 2, $y + 2),
+            [Drawing.PointF]::new($posX - 1, $y + 1),
             $format
         )
         
@@ -93,7 +98,7 @@ $label.Add_Paint({
             $line,
             $currentFont,
             [Drawing.Brushes]::White,
-            [Drawing.PointF]::new($xPosition, $y),
+            [Drawing.PointF]::new($posX, $y),
             $format
         )
         
