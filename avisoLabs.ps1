@@ -39,25 +39,26 @@ Chamados: chamado.ufg.br
 $font = New-Object Drawing.Font("Segoe UI", 10, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::FromArgb(20, 20, 20)  # Cinza muito escuro
+$shadowColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
 $shadowBrush = New-Object Drawing.SolidBrush($shadowColor)
 
-# Configuração da janela transparente
+# Configuração da janela
 $form = New-Object Windows.Forms.Form
 $form.FormBorderStyle = 'None'
-$form.BackColor = [System.Drawing.Color]::FromArgb(0, 1, 0)  # Cor quase preta para transparência
+$form.BackColor = [System.Drawing.Color]::FromArgb(0, 1, 0)
 $form.TransparencyKey = $form.BackColor
-$form.TopMost = $true
+$form.TopMost = $false  # Alterado para não ficar sobre outras janelas
 $form.ShowInTaskbar = $false
+$form.StartPosition = 'Manual'
 
-# Cálculo de tamanho dinâmico
+# Cálculo de tamanho
 $lineCount = ($message -split "\r?\n").Count
 $formWidth = 400
 $formHeight = 20 + ($lineCount * 24)
 $form.Size = New-Object Drawing.Size($formWidth, $formHeight)
 
-# Posicionamento correto no canto superior direito
-$screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+# Posicionamento no canto superior direito
+$screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 $form.Location = New-Object Drawing.Point(
     $screen.Width - $formWidth - 20,  # 20px da borda direita
     20  # 20px do topo
@@ -76,9 +77,9 @@ $label.Add_Paint({
     
     foreach ($line in ($message -split "\r?\n")) {
         $currentFont = if ($line -match "LABORATÓRIO|\[.*\]") { $boldFont } else { $font }
-        $posX = $sender.Width - 15  # Margem direita de 15px
+        $posX = $sender.Width - 20
         
-        # Sombra discreta
+        # Sombra
         $e.Graphics.DrawString(
             $line,
             $currentFont,
@@ -87,7 +88,7 @@ $label.Add_Paint({
             $format
         )
         
-        # Texto principal
+        # Texto
         $e.Graphics.DrawString(
             $line,
             $currentFont,
