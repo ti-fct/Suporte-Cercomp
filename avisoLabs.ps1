@@ -13,13 +13,12 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# Função para obter IP
+# Função para obter IP corrigida
 function Get-IPv4Address {
-    # Filtra apenas interfaces Ethernet (cabeadas) que estão ativas
     $interfaces = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | 
         Where-Object { 
             $_.OperationalStatus -eq 'Up' -and 
-            $_.NetworkInterfaceType -eq 'Ethernet'  # Foco em interfaces cabeadas
+            $_.NetworkInterfaceType -eq 'Ethernet'
         }
     
     foreach ($interface in $interfaces) {
@@ -32,18 +31,19 @@ function Get-IPv4Address {
     }
     return "IP não disponível"
 }
+
 # Configurações do texto
 $message = @"
 LABORATÓRIO DE INFORMÁTICA - FCT/UFG
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 Computador: $env:COMPUTERNAME
-Endereço IP: $(Get-LocalIPv4)
+Endereço IP: $(Get-IPv4Address)
 
 [REGRAS DE USO]
 • Uso exclusivo para atividades acadêmicas
 • Proibido alterar configurações do sistema
 • Não desconectar cabos ou periféricos
-• Proibido consumo de alimentos no labortatório
+• Proibido consumo de alimentos no laboratório
 
 [PROCEDIMENTOS AO SAIR]
 1. Encerre todos os aplicativos (Ctrl + Shift + Esc)
@@ -61,28 +61,27 @@ Endereço IP: $(Get-LocalIPv4)
 $font = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 13, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::FromArgb(30,30,30) # Cinza escuro
+$shadowColor = [System.Drawing.Color]::FromArgb(30,30,30)
 $shadowOffset = 2
 $maxWidth = 500
-$lineHeight = 22
+$lineHeight = 24  # Aumentado para melhor espaçamento
 
 try {
     $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
-}
-catch {
+} catch {
     $screenWidth = 1920
 }
 
 $positionX = $screenWidth - ($maxWidth + 40)
 
-# Criação da janela
+# Criação da janela com altura ajustada
 $form = New-Object Windows.Forms.Form
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.BackColor = 'Magenta'
 $form.TransparencyKey = $form.BackColor
 $form.StartPosition = 'Manual'
 $form.Location = New-Object Drawing.Point($positionX, 40)
-$form.Size = New-Object Drawing.Size($maxWidth, 480)
+$form.Size = New-Object Drawing.Size($maxWidth, 650)  # Altura aumentada
 $form.TopMost = $false
 $form.ShowInTaskbar = $false
 
@@ -102,11 +101,11 @@ $label.Add_Paint({
     $format.Alignment = [Drawing.StringAlignment]::Far
     $yPos = 10
 
-    $sections = $message -split "`n"
+    # Corrigindo a divisão de linhas para considerar diferentes tipos de quebra de linha
+    $sections = $message -split "\r?\n"
     
     foreach ($section in $sections) {
-        # Verificação de estilo condicional
-        if ($section -match "▔") {
+        if ($section -match "▔+") {
             $e.Graphics.DrawLine(
                 [System.Drawing.Pens]::Gray,
                 ($sender.Width - 400), ($yPos + 5),
@@ -116,14 +115,14 @@ $label.Add_Paint({
             continue
         }
 
-        # Lógica corrigida para versões antigas do PowerShell
-        if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS") {
+        # Adicionado suporte para [SUPORTE TÉCNICO] em negrito
+        if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS|SUPORTE") {
             $currentFont = $boldFont
         } else {
             $currentFont = $font
         }
 
-        # Sombra melhorada
+        # Desenho da sombra
         $e.Graphics.DrawString(
             $section,
             $currentFont,
@@ -137,7 +136,7 @@ $label.Add_Paint({
             $format
         )
         
-        # Texto principal
+        # Desenho do texto principal
         $e.Graphics.DrawString(
             $section,
             $currentFont,
@@ -151,7 +150,7 @@ $label.Add_Paint({
             $format
         )
         
-        $yPos += $lineHeight + 5
+        $yPos += $lineHeight + 3  # Espaçamento ajustado
     }
 })
 
