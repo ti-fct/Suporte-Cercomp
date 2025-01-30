@@ -1,162 +1,100 @@
 #Requires -Version 5
 
-<#
-.SYNOPSIS
-    Sistema de avisos para laboratórios - FCT/UFG
-.DESCRIPTION
-    Exibe informações institucionais e de segurança no canto superior direito
-.NOTES
-    Versão: 3.5
-    Autor: Departamento de TI FCT/UFG
-#>
-
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# Função para obter IP corrigida
-function Get-IPv4Address {
-    $interfaces = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | 
-        Where-Object { 
-            $_.OperationalStatus -eq 'Up' -and 
-            $_.NetworkInterfaceType -eq 'Ethernet'
-        }
-    
-    foreach ($interface in $interfaces) {
-        $address = $interface.GetIPProperties().UnicastAddresses |
-            Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' }
-        
-        if ($address) {
-            return $address.Address.ToString()
-        }
+# Função SIMPLIFICADA para IP
+function Get-LocalIP {
+    try {
+        $ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*' -ErrorAction Stop | 
+            Where-Object {$_.PrefixOrigin -ne 'WellKnown'}).IPAddress
+        return $ip
     }
-    return "IP não disponível"
+    catch {
+        return "IP não detectado"
+    }
 }
 
-# Configurações do texto
+# Texto com formatação simplificada
 $message = @"
 LABORATÓRIO DE INFORMÁTICA - FCT/UFG
-▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+────────────────────────────────────
 Computador: $env:COMPUTERNAME
-Endereço IP: $(Get-IPv4Address)
+IP Local: $(Get-LocalIP)
 
 [REGRAS DE USO]
 • Uso exclusivo para atividades acadêmicas
 • Proibido alterar configurações do sistema
-• Não desconectar cabos ou periféricos
-• Proibido consumo de alimentos no laboratório
 
 [PROCEDIMENTOS AO SAIR]
-1. Encerre todos os aplicativos (Ctrl + Shift + Esc)
-2. Faça logout de todas as contas
+1. Encerre todos os aplicativos
+2. Faça logout das contas
 3. Remova dispositivos externos
-4. Desligue a estação corretamente
 
 [SUPORTE TÉCNICO]
-• Sistema: $((Get-CimInstance Win32_OperatingSystem).Caption)
-• Último boot: $((Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('dd/MM/yyyy HH:mm'))
-• Chamados: chamado.ufg.br
+Sistema: $((Get-CimInstance Win32_OperatingSystem).Caption)
+Último boot: $((Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('dd/MM HH:mm'))
+Chamados: chamado.ufg.br
 "@
 
 # Configurações de estilo
-$font = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Regular)
-$boldFont = New-Object Drawing.Font("Segoe UI", 13, [Drawing.FontStyle]::Bold)
+$font = New-Object Drawing.Font("Segoe UI", 10, [Drawing.FontStyle]::Regular)
+$boldFont = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::FromArgb(30,30,30)
-$shadowOffset = 2
-$maxWidth = 500
-$lineHeight = 24  # Aumentado para melhor espaçamento
+$shadowColor = [System.Drawing.Color]::Black
 
-try {
-    $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
-} catch {
-    $screenWidth = 1920
-}
+# Cálculo dinâmico do tamanho
+$lineCount = ($message -split "\r?\n").Count
+$formHeight = 40 + ($lineCount * 24)
 
-$positionX = $screenWidth - ($maxWidth + 40)
-
-# Criação da janela com altura ajustada
 $form = New-Object Windows.Forms.Form
-$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+$form.FormBorderStyle = 'None'
 $form.BackColor = 'Magenta'
-$form.TransparencyKey = $form.BackColor
+$form.TransparencyKey = 'Magenta'
+$form.TopMost = $true
+$form.Size = New-Object Drawing.Size(400, $formHeight)
 $form.StartPosition = 'Manual'
-$form.Location = New-Object Drawing.Point($positionX, 40)
-$form.Size = New-Object Drawing.Size($maxWidth, 650)  # Altura aumentada
-$form.TopMost = $false
-$form.ShowInTaskbar = $false
+$form.Location = New-Object Drawing.Point(
+    [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width - 420,
+    20
+)
 
-# Controle personalizado
 $label = New-Object Windows.Forms.Label
 $label.Font = $font
 $label.ForeColor = $textColor
-$label.BackColor = [System.Drawing.Color]::Transparent
 $label.Size = $form.Size
-$label.TextAlign = [System.Drawing.ContentAlignment]::TopRight
+$label.TextAlign = 'TopRight'
 
-# Desenho aprimorado
 $label.Add_Paint({
     param($sender, $e)
     
-    $format = New-Object Drawing.StringFormat
-    $format.Alignment = [Drawing.StringAlignment]::Far
-    $yPos = 10
-
-    # Corrigindo a divisão de linhas para considerar diferentes tipos de quebra de linha
-    $sections = $message -split "\r?\n"
+    $y = 10
+    $lines = $message -split "\r?\n"
     
-    foreach ($section in $sections) {
-        if ($section -match "▔+") {
-            $e.Graphics.DrawLine(
-                [System.Drawing.Pens]::Gray,
-                ($sender.Width - 400), ($yPos + 5),
-                ($sender.Width - 20), ($yPos + 5)
-            )
-            $yPos += 15
-            continue
-        }
-
-        # Adicionado suporte para [SUPORTE TÉCNICO] em negrito
-        if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS|SUPORTE") {
-            $currentFont = $boldFont
-        } else {
-            $currentFont = $font
-        }
-
-        # Desenho da sombra
+    foreach ($line in $lines) {
+        $currentFont = if ($line -match "LABORATÓRIO|\[.*\]") { $boldFont } else { $font }
+        
+        # Sombra
         $e.Graphics.DrawString(
-            $section,
+            $line,
             $currentFont,
-            (New-Object Drawing.SolidBrush($shadowColor)),
-            (New-Object Drawing.RectangleF(
-                $shadowOffset,
-                $yPos + $shadowOffset,
-                $sender.Width - ($shadowOffset * 2),
-                $lineHeight
-            )),
-            $format
+            $shadowColor,
+            [Drawing.Rectangle]::FromLTRB(2, $y + 2, $sender.Width - 5, $sender.Height),
+            (New-Object Drawing.StringFormat([Drawing.StringFormatFlags]::NoWrap))
         )
         
-        # Desenho do texto principal
+        # Texto
         $e.Graphics.DrawString(
-            $section,
+            $line,
             $currentFont,
-            (New-Object Drawing.SolidBrush($textColor)),
-            (New-Object Drawing.RectangleF(
-                0,
-                $yPos,
-                $sender.Width,
-                $lineHeight
-            )),
-            $format
+            [Drawing.Brushes]::White,
+            [Drawing.Rectangle]::FromLTRB(0, $y, $sender.Width - 5, $sender.Height),
+            (New-Object Drawing.StringFormat([Drawing.StringFormatFlags]::NoWrap))
         )
         
-        $yPos += $lineHeight + 3  # Espaçamento ajustado
+        $y += 24
     }
 })
 
 $form.Controls.Add($label)
-
-# Execução
-if ([Environment]::UserInteractive) {
-    [void]$form.ShowDialog()
-}
+$form.ShowDialog()
