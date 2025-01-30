@@ -1,33 +1,51 @@
-# Script Modular de Manutenção Windows - UFG Campus Aparecida
+# 🛠️ Scripts de Gerenciamento - FCT/UFG
 
-Este é um script PowerShell desenvolvido pelo Departamento de TI da Universidade Federal de Goiás (UFG), Campus Aparecida, para facilitar a manutenção e administração de sistemas Windows. O script oferece uma variedade de funcionalidades que podem ser executadas por administradores de sistema para gerenciar computadores em um ambiente de laboratório ou corporativo.
+Repositório oficial de scripts PowerShell para administração de sistemas e laboratórios da Faculdade de Ciências e Tecnologia (FCT/UFG).  
+🔧 **Ferramentas atualizadas** | 🚀 **Prontas para produção** | 📜 **Documentação clara**
 
-## Funcionalidades Principais
+---
 
-O script oferece as seguintes funcionalidades:
+## 📂 Scripts Disponíveis
 
-1. **📜 Listar Programas Instalados**: Gera um relatório de todos os programas instalados no computador e salva o resultado em um arquivo de texto.
-2. **💻 Alterar Nome do Computador**: Permite alterar o nome do computador, com validação de entrada e opção de reinicialização.
-3. **🏛 Aplicar GPOs da FCT**: Aplica políticas de grupo (GPOs) específicas da Faculdade de Ciências e Tecnologia (FCT) a partir de um servidor de políticas.
-4. **🧹 Restaurar GPOs Padrão do Windows**: Remove todas as políticas de grupo personalizadas e restaura as configurações padrão do Windows.
-5. **🔄 Atualizar GPOs**: Força a atualização das políticas de grupo após aplicar ou restaurar as GPOs.
-6. **🛒 Reset Windows Store**: Reinicializa a Microsoft Store, útil após a aplicação de GPOs que afetam a loja.
-7. **🧼 Labs Limpeza Geral do Windows (Beta)**: Executa uma limpeza completa do sistema, incluindo:
-   - Limpeza de arquivos temporários e pastas de usuários (Downloads e Desktop).
-   - Reset de configurações de energia e rede.
-   - Remoção de contas Microsoft.
-   - Restauração de temas visuais.
-   - Limpeza avançada com BleachBit.
-   - Verificação de saúde do sistema com DISM e SFC.
-8. **🚀 Reiniciar Computador**: Reinicia o computador após confirmação do usuário.
-9. **❌ Sair do Script**: Encerra a execução do script.
+| Nome do Script         | Descrição                                                                                  | Versão |
+|------------------------|------------------------------------------------------------------------------------------|--------|
+| [**`avisoLabs.ps1`**](avisoLabs.ps1) | Exibe avisos institucionais e regras de uso em laboratórios (canto superior direito da tela). | `v5`   |
+| [**`fct.ps1`**](fct.ps1)               | Script modular para manutenção de sistemas Windows (GPOs, limpeza, redes, etc.).           | `v2.7` |
+| *Em breve...*          | Novos scripts serão adicionados aqui!                                                    |        |
 
-## Como Utilizar
+---
+
+## 🚀 Funcionalidades Destacadas
+
+### 🔖 `avisoLabs.ps1`
+- Exibe informações em tempo real:
+  - Nome do computador e IP local.
+  - Regras de uso do laboratório.
+  - Procedimentos ao sair.
+  - Contato de suporte técnico.
+- Interface visual customizada (transparente e responsiva).
+
+### ⚙️ `fct.ps1`
+- Menu interativo com 9 opções de administração:
+  1. Listar programas instalados.
+  2. Alterar nome do computador.
+  3. Aplicar políticas de grupo (GPOs) da FCT.
+  4. Restaurar GPOs padrão do Windows.
+  5. Atualizar políticas de grupo.
+  6. Resetar Microsoft Store.
+  7. Limpeza avançada do sistema (arquivos temporários, contas, temas, etc.).
+  8. Reiniciar computador.
+  9. Sair do script.
+- Suporte a execução com privilégios elevados.
+
+---
+
+## 📥 Como Usar
 
 ### Pré-requisitos
+- PowerShell 5.0 ou superior.
+- Permissões de administrador (para `fct.ps1`).
 
-- **PowerShell 5.0 ou superior**: O script requer PowerShell versão 5.0 ou superior.
-- **Privilégios de Administrador**: O script deve ser executado com privilégios de administrador.
 
 ### Execução
 
@@ -41,3 +59,47 @@ O script oferece as seguintes funcionalidades:
    ```powershell
    Set-SmbClientConfiguration -EnableInsecureGuestLogons $true
    ```
+
+---
+
+## 🛠️ Futuras Atualizações
+
+- **Novos scripts planejados**:
+- Backup automatizado de estações.
+- Monitoramento de hardware em tempo real.
+- Melhorias na documentação e exemplos de uso.
+
+---
+
+## 🤝 Contribuição
+
+Contribuições são bem-vindas! Siga estas etapas:
+
+1. Faça um fork do projeto.
+2. Crie uma branch: `git checkout -b minha-feature`.
+3. Commit suas mudanças: `git commit -m 'Adicionei um script incrível'`.
+4. Push para a branch: `git push origin minha-feature`.
+5. Abra um **Pull Request**.
+
+---
+
+## 📜 Licença
+
+Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) para mais detalhes.
+
+---
+
+## 👨💻 Autores
+
+- **Departamento de TI - FCT/UFG**
+<p align="center">
+<img src="https://img.shields.io/badge/Powered%20by-PowerShell-blue?style=for-the-badge&logo=powershell" alt="Powered by PowerShell">
+</p>
+
+```
+
+### Personalize
+
+- Substitua `https://github.com/seu-usuario/seu-repositorio.git` pelo link real do seu repositório.
+- Adicione ou ajuste seções conforme novos scripts forem incluídos.
+- Atualize o e-mail de suporte (`ti@fct.ufg.br`) se necessário.
