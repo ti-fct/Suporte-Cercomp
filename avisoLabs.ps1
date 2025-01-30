@@ -1,14 +1,13 @@
 #Requires -Version 5
-#Requires -RunAsAdministrator
 
 <#
 .SYNOPSIS
-    Mensagem de aviso wallpaper labs UFG
+    Overlay de avisos para laboratórios UFG
 .DESCRIPTION
-    Overlay transparente com avisos institucionais
+    Exibe mensagem não intrusiva no canto superior direito da tela
 .NOTES
-    Versão: 2.1
-    Autor: Departamento de TI UFG (Diego)
+    Versão: 2.2
+    Autor: Departamento de TI UFG
 #>
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -19,24 +18,29 @@ $message = @"
 [📜] LABS UFG
 [🖥️] $env:COMPUTERNAME
 
-[❗] ATENÇÃO: Respeite as regras do laboratório
+[❗] ATENÇÃO: Mantenha o foco acadêmico!
 
 [⚠️] ANTES DE SAIR:
 ① Encerre TODOS os aplicativos
-② Deslogue de contas (e-mail, redes sociais)
-③ Remova arquivos pessoais
+② Deslogue de contas pessoais
+③ Remova arquivos temporários
 ④ Feche todas as janelas
 
-[🔒] DADOS NÃO SALVOS SERÃO PERDIDOS!
+[🔒] Dados não salvos serão APAGADOS automaticamente!
 "@
 
-# Configurações de estilo
-$font = New-Object Drawing.Font("Segoe UI Emoji, Segoe UI", 12, [Drawing.FontStyle]::Bold)
-$textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::Black
-$shadowOffset = 2
+# Configurações adaptativas
 $maxWidth = 480
-$positionX = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width - ($maxWidth + 20)
+$defaultScreenWidth = 1920
+
+try {
+    $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
+}
+catch {
+    $screenWidth = $defaultScreenWidth
+}
+
+$positionX = $screenWidth - ($maxWidth + 20)
 
 # Criação da janela
 $form = New-Object Windows.Forms.Form
@@ -49,40 +53,43 @@ $form.Size = New-Object Drawing.Size($maxWidth, 400)
 $form.TopMost = $false
 $form.ShowInTaskbar = $false
 
-# Controle personalizado para texto
+# Configuração do texto
 $label = New-Object Windows.Forms.Label
-$label.Font = $font
-$label.ForeColor = $textColor
+$label.Font = New-Object Drawing.Font("Segoe UI Emoji", 12, [Drawing.FontStyle]::Bold)
+$label.ForeColor = [System.Drawing.Color]::White
 $label.BackColor = [System.Drawing.Color]::Transparent
-$label.Size = New-Object Drawing.Size($maxWidth, 380)
+$label.Size = $form.Size
 $label.TextAlign = [System.Drawing.ContentAlignment]::TopRight
 
-# Desenho do texto com borda
+# Desenho com borda
 $label.Add_Paint({
     param($sender, $e)
     
     $format = New-Object Drawing.StringFormat
     $format.Alignment = [Drawing.StringAlignment]::Far
     
-    # Borda
-    $rectShadow = New-Object Drawing.RectangleF(
-        $shadowOffset,
-        $shadowOffset,
-        $sender.Width - ($shadowOffset * 2),
-        $sender.Height - ($shadowOffset * 2)
+    # Sombra
+    $e.Graphics.DrawString(
+        $message,
+        $label.Font,
+        [System.Drawing.Brushes]::Black,
+        (New-Object Drawing.RectangleF(2, 2, $sender.Width, $sender.Height)),
+        $format
     )
-    $e.Graphics.DrawString($message, $font, (New-Object Drawing.SolidBrush($shadowColor)), $rectShadow, $format)
     
     # Texto principal
-    $rectMain = New-Object Drawing.RectangleF(0, 0, $sender.Width, $sender.Height)
-    $e.Graphics.DrawString($message, $font, (New-Object Drawing.SolidBrush($textColor)), $rectMain, $format)
+    $e.Graphics.DrawString(
+        $message,
+        $label.Font,
+        [System.Drawing.Brushes]::White,
+        (New-Object Drawing.RectangleF(0, 0, $sender.Width, $sender.Height)),
+        $format
+    )
 })
 
 $form.Controls.Add($label)
 
-# Configurações de encoding
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$ErrorActionPreference = 'Stop'
-
-# Execução silenciosa
-$form.ShowDialog() | Out-Null
+# Execução
+if ([Environment]::UserInteractive) {
+    [void]$form.ShowDialog()
+}
