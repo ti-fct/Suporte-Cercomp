@@ -6,7 +6,7 @@
 .DESCRIPTION
     Exibe informações institucionais e de segurança no canto superior direito
 .NOTES
-    Versão: 3.1
+    Versão: 3.2
     Autor: Departamento de TI FCT/UFG
 #>
 
@@ -31,7 +31,7 @@ function Get-IPv4Address {
 
 # Configurações do texto
 $message = @"
-LABORATÓRIO DE INFORMÁTICA
+LABORATÓRIO DE INFORMÁTICA - FCT/UFG
 ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 Computador: $env:COMPUTERNAME
 Endereço IP: $(Get-IPv4Address)
@@ -47,7 +47,8 @@ PROCEDIMENTOS AO SAIR:
 3. Remova dispositivos USB
 4. Desligue o computador
 
-ℹ️ Sistema monitorado 24/7 - Dúvidas: ti@fct.ufg.br
+Problemas? 
+Abra um chamado em: chamado.ufg.br
 "@
 
 # Configurações de estilo
