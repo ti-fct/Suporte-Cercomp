@@ -6,7 +6,7 @@
 .DESCRIPTION
     Exibe informações institucionais e de segurança no canto superior direito
 .NOTES
-    Versão: 3.0
+    Versão: 3.1
     Autor: Departamento de TI FCT/UFG
 #>
 
@@ -54,7 +54,7 @@ PROCEDIMENTOS AO SAIR:
 $font = New-Object Drawing.Font("Segoe UI", 12, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 14, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::Black
+$shadowColor = [System.Drawing.Color]::FromArgb(30,30,30) # Cinza escuro
 $shadowOffset = 2
 $maxWidth = 500
 $lineHeight = 22
@@ -95,11 +95,10 @@ $label.Add_Paint({
     $format.Alignment = [Drawing.StringAlignment]::Far
     $yPos = 10
 
-    # Divide o texto em seções
     $sections = $message -split "`n"
     
     foreach ($section in $sections) {
-        # Formatação condicional
+        # Verificação de estilo condicional
         if ($section -match "▔") {
             $e.Graphics.DrawLine(
                 [System.Drawing.Pens]::Gray,
@@ -110,13 +109,18 @@ $label.Add_Paint({
             continue
         }
 
-        $currentFont = $section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS" ? $boldFont : $font
-        
-        # Sombra
+        # Lógica corrigida para versões antigas do PowerShell
+        if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS") {
+            $currentFont = $boldFont
+        } else {
+            $currentFont = $font
+        }
+
+        # Sombra melhorada
         $e.Graphics.DrawString(
             $section,
             $currentFont,
-            [System.Drawing.Brushes]::Black,
+            (New-Object Drawing.SolidBrush($shadowColor)),
             (New-Object Drawing.RectangleF(
                 $shadowOffset,
                 $yPos + $shadowOffset,
@@ -130,7 +134,7 @@ $label.Add_Paint({
         $e.Graphics.DrawString(
             $section,
             $currentFont,
-            [System.Drawing.Brushes]::White,
+            (New-Object Drawing.SolidBrush($textColor)),
             (New-Object Drawing.RectangleF(
                 0,
                 $yPos,
