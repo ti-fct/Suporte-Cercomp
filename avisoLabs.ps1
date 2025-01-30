@@ -1,16 +1,5 @@
 #Requires -Version 5
 
-<#
-.SYNOPSIS
-    Sistema de avisos para laboratórios - FCT/UFG
-.DESCRIPTION
-    Exibe informações institucionais e de segurança no canto superior direito
-.NOTES
-    Versão: 4.0
-    Autor: Departamento de TI FCT/UFG (Diego)
-#>
-
-
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -34,7 +23,6 @@ IP Local: $(Get-LocalIP)
 [REGRAS DE USO]
 • Uso exclusivo para atividades acadêmicas
 • Proibido alterar configurações do sistema
-• Não consumir alimentos no labortatório
 
 [PROCEDIMENTOS AO SAIR]
 1. Encerre todos os aplicativos
@@ -42,6 +30,8 @@ IP Local: $(Get-LocalIP)
 3. Remova dispositivos externos
 
 [SUPORTE TÉCNICO]
+Sistema: $((Get-CimInstance Win32_OperatingSystem).Caption)
+Último boot: $((Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('dd/MM HH:mm'))
 Chamados: chamado.ufg.br
 "@
 
@@ -49,42 +39,46 @@ Chamados: chamado.ufg.br
 $font = New-Object Drawing.Font("Segoe UI", 10, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::FromArgb(30, 30, 30)  # Cinza escuro
+$shadowColor = [System.Drawing.Color]::FromArgb(20, 20, 20)  # Cinza muito escuro
 $shadowBrush = New-Object Drawing.SolidBrush($shadowColor)
 
-# Configuração da janela
+# Configuração da janela transparente
 $form = New-Object Windows.Forms.Form
 $form.FormBorderStyle = 'None'
-$form.BackColor = 'Lime'  # Cor alterada para melhor transparência
-$form.TransparencyKey = 'Lime'
+$form.BackColor = [System.Drawing.Color]::FromArgb(0, 1, 0)  # Cor quase preta para transparência
+$form.TransparencyKey = $form.BackColor
 $form.TopMost = $true
-$form.ShowInTaskbar = $false  # Remove da barra de tarefas
+$form.ShowInTaskbar = $false
 
-# Cálculo de tamanho
+# Cálculo de tamanho dinâmico
 $lineCount = ($message -split "\r?\n").Count
-$form.Size = New-Object Drawing.Size(400, (40 + ($lineCount * 24)))
+$formWidth = 400
+$formHeight = 20 + ($lineCount * 24)
+$form.Size = New-Object Drawing.Size($formWidth, $formHeight)
 
-# Posicionamento
-$screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width
-$form.Location = New-Object Drawing.Point(($screenWidth - 420), 20)
+# Posicionamento correto no canto superior direito
+$screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+$form.Location = New-Object Drawing.Point(
+    $screen.Width - $formWidth - 20,  # 20px da borda direita
+    20  # 20px do topo
+)
 
 $label = New-Object Windows.Forms.Label
 $label.Size = $form.Size
-$label.ForeColor = $textColor
 
 $label.Add_Paint({
     param($sender, $e)
     
-    $e.Graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+    $e.Graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAlias
     $y = 10
     $format = New-Object Drawing.StringFormat
     $format.Alignment = [Drawing.StringAlignment]::Far
     
     foreach ($line in ($message -split "\r?\n")) {
         $currentFont = if ($line -match "LABORATÓRIO|\[.*\]") { $boldFont } else { $font }
-        $posX = $sender.Width - 15
+        $posX = $sender.Width - 15  # Margem direita de 15px
         
-        # Sombra suave
+        # Sombra discreta
         $e.Graphics.DrawString(
             $line,
             $currentFont,
