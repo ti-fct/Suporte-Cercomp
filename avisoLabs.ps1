@@ -6,81 +6,88 @@
 .DESCRIPTION
     Exibe informações institucionais e de segurança no canto superior direito
 .NOTES
-    Versão: 3.2
+    Versão: 4.0
     Autor: Departamento de TI FCT/UFG
 #>
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# Função para obter IP
-function Get-IPv4Address {
-    $interfaces = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | 
-        Where-Object { $_.OperationalStatus -eq 'Up' -and $_.NetworkInterfaceType -ne 'Loopback' }
-    
-    foreach ($interface in $interfaces) {
-        $address = $interface.GetIPProperties().UnicastAddresses |
-            Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' }
-        
-        if ($address) {
-            return $address.Address.ToString()
+# Função para obter IP Local melhorada
+function Get-LocalIPv4 {
+    try {
+        $adapters = Get-NetAdapter -Physical | Where-Object Status -eq 'Up'
+        foreach ($adapter in $adapters) {
+            $ipv4 = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 | 
+                    Where-Object PrefixOrigin -ne 'WellKnown' | 
+                    Select-Object -ExpandProperty IPAddress -First 1
+            if ($ipv4) { return $ipv4 }
         }
+        return "Sem conexão"
     }
-    return "IP não disponível"
+    catch { return "IP não disponível" }
 }
 
 # Configurações do texto
 $message = @"
 LABORATÓRIO DE INFORMÁTICA - FCT/UFG
-▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 Computador: $env:COMPUTERNAME
-Endereço IP: $(Get-IPv4Address)
+Endereço IP: $(Get-LocalIPv4)
 
-REGRAS DE USO:
+[REGRAS DE USO]
 • Uso exclusivo para atividades acadêmicas
-• Proibido acesso a sites não educacionais
-• Não salve arquivos localmente
+• Proibido alterar configurações do sistema
+• Não desconectar cabos ou periféricos
 
-PROCEDIMENTOS AO SAIR:
-1. Encerre todos os aplicativos
+[PROCEDIMENTOS AO SAIR]
+1. Encerre todos os aplicativos (Ctrl + Shift + Esc)
 2. Faça logout de todas as contas
-3. Remova dispositivos USB
-4. Desligue o computador
+3. Remova dispositivos externos
+4. Desligue a estação corretamente
 
-Problemas? 
-Abra um chamado em: chamado.ufg.br
+[SUPORTE TÉCNICO]
+• Sistema: $((Get-CimInstance Win32_OperatingSystem).Caption)
+• Último boot: $((Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToString('dd/MM/yyyy HH:mm'))
+• Chamados: chamados.fct.ufg.br | Ramal: 1234
 "@
 
-# Configurações de estilo
-$font = New-Object Drawing.Font("Segoe UI", 12, [Drawing.FontStyle]::Regular)
-$boldFont = New-Object Drawing.Font("Segoe UI", 14, [Drawing.FontStyle]::Bold)
-$textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::FromArgb(30,30,30) # Cinza escuro
-$shadowOffset = 2
-$maxWidth = 500
+# Configurações de estilo aprimoradas
+$font = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Regular)
+$boldFont = New-Object Drawing.Font("Segoe UI", 13, [Drawing.FontStyle]::Bold)
+$textColor = [System.Drawing.Color]::FromArgb(245,245,245) # Branco suave
+$shadowColor = [System.Drawing.Color]::FromArgb(15,15,15)   # Preto fosco
+$shadowOffset = 1.5
+$maxWidth = 520
 $lineHeight = 22
+$opacity = 0.95 # 95% de opacidade
 
+# Detecção automática de resolução
 try {
-    $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
+    $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+    $screenWidth = $screen.Bounds.Width
+    $dpiScale = $screen.Bounds.Width/$screen.WorkingArea.Width
 }
 catch {
     $screenWidth = 1920
+    $dpiScale = 1
 }
 
-$positionX = $screenWidth - ($maxWidth + 40)
+$positionX = [math]::Round(($screenWidth/$dpiScale) - ($maxWidth + 40))
 
-# Criação da janela
+# Criação da janela com transparência real
 $form = New-Object Windows.Forms.Form
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.BackColor = 'Magenta'
 $form.TransparencyKey = $form.BackColor
+$form.Opacity = $opacity
 $form.StartPosition = 'Manual'
 $form.Location = New-Object Drawing.Point($positionX, 40)
-$form.Size = New-Object Drawing.Size($maxWidth, 480)
+$form.Size = New-Object Drawing.Size($maxWidth, 520)
 $form.TopMost = $false
 $form.ShowInTaskbar = $false
 
-# Controle personalizado
+# Renderização avançada
 $label = New-Object Windows.Forms.Label
 $label.Font = $font
 $label.ForeColor = $textColor
@@ -88,48 +95,51 @@ $label.BackColor = [System.Drawing.Color]::Transparent
 $label.Size = $form.Size
 $label.TextAlign = [System.Drawing.ContentAlignment]::TopRight
 
-# Desenho aprimorado
 $label.Add_Paint({
     param($sender, $e)
     
     $format = New-Object Drawing.StringFormat
     $format.Alignment = [Drawing.StringAlignment]::Far
-    $yPos = 10
+    $yPos = 15
+    $sectionPadding = 10
 
     $sections = $message -split "`n"
     
     foreach ($section in $sections) {
-        # Verificação de estilo condicional
         if ($section -match "▔") {
             $e.Graphics.DrawLine(
-                [System.Drawing.Pens]::Gray,
-                ($sender.Width - 400), ($yPos + 5),
-                ($sender.Width - 20), ($yPos + 5)
+                (New-Object Drawing.Pen([System.Drawing.Color]::Gray, 1.5)),
+                ($sender.Width - 450), ($yPos + 3),
+                ($sender.Width - 30), ($yPos + 3)
             )
-            $yPos += 15
+            $yPos += 20
             continue
         }
 
-        # Lógica corrigida para versões antigas do PowerShell
-        if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS") {
+        $currentFont = $font
+        if ($section -match "\[.*\]") {
             $currentFont = $boldFont
-        } else {
-            $currentFont = $font
+            $section = $section -replace '[\[\]]',''
         }
 
-        # Sombra melhorada
-        $e.Graphics.DrawString(
-            $section,
-            $currentFont,
-            (New-Object Drawing.SolidBrush($shadowColor)),
-            (New-Object Drawing.RectangleF(
-                $shadowOffset,
-                $yPos + $shadowOffset,
-                $sender.Width - ($shadowOffset * 2),
-                $lineHeight
-            )),
-            $format
-        )
+        # Renderização com suavização
+        $e.Graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+        
+        # Sombra suave
+        for ($i = 0; $i -lt 3; $i++) {
+            $e.Graphics.DrawString(
+                $section,
+                $currentFont,
+                [System.Drawing.Brushes]::Black,
+                (New-Object Drawing.RectangleF(
+                    ($shadowOffset + $i),
+                    ($yPos + $shadowOffset + $i),
+                    $sender.Width,
+                    $lineHeight
+                )),
+                $format
+            )
+        }
         
         # Texto principal
         $e.Graphics.DrawString(
@@ -145,13 +155,14 @@ $label.Add_Paint({
             $format
         )
         
-        $yPos += $lineHeight + 5
+        $yPos += $lineHeight + (($section -match '^$') ? 10 : 5)
     }
 })
 
 $form.Controls.Add($label)
 
-# Execução
+# Execução segura
 if ([Environment]::UserInteractive) {
-    [void]$form.ShowDialog()
+    try { [void]$form.ShowDialog() }
+    catch { Write-Warning "Erro gráfico: $($_.Exception.Message)" }
 }
