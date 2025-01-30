@@ -3,19 +3,19 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# Função SIMPLIFICADA para IP
+# Função simplificada e robusta para obter IP
 function Get-LocalIP {
     try {
         $ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*' -ErrorAction Stop | 
-            Where-Object {$_.PrefixOrigin -ne 'WellKnown'}).IPAddress
-        return $ip
+            Where-Object { $_.PrefixOrigin -ne 'WellKnown' }).IPAddress
+        return ($ip -split '\n')[0]  # Pega o primeiro IP se houver múltiplos
     }
     catch {
         return "IP não detectado"
     }
 }
 
-# Texto com formatação simplificada
+# Mensagem formatada
 $message = @"
 LABORATÓRIO DE INFORMÁTICA - FCT/UFG
 ────────────────────────────────────
@@ -42,11 +42,13 @@ $font = New-Object Drawing.Font("Segoe UI", 10, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
 $shadowColor = [System.Drawing.Color]::Black
+$shadowBrush = New-Object Drawing.SolidBrush($shadowColor)
 
-# Cálculo dinâmico do tamanho
+# Cálculo dinâmico de tamanho
 $lineCount = ($message -split "\r?\n").Count
 $formHeight = 40 + ($lineCount * 24)
 
+# Configuração da janela
 $form = New-Object Windows.Forms.Form
 $form.FormBorderStyle = 'None'
 $form.BackColor = 'Magenta'
@@ -54,42 +56,45 @@ $form.TransparencyKey = 'Magenta'
 $form.TopMost = $true
 $form.Size = New-Object Drawing.Size(400, $formHeight)
 $form.StartPosition = 'Manual'
-$form.Location = New-Object Drawing.Point(
-    [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width - 420,
-    20
-)
 
+# Posicionamento correto usando WorkingArea
+$screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width
+$form.Location = New-Object Drawing.Point(($screenWidth - 420), 20)
+
+# Label com renderização otimizada
 $label = New-Object Windows.Forms.Label
 $label.Font = $font
 $label.ForeColor = $textColor
 $label.Size = $form.Size
-$label.TextAlign = 'TopRight'
 
 $label.Add_Paint({
     param($sender, $e)
     
     $y = 10
     $lines = $message -split "\r?\n"
+    $format = New-Object Drawing.StringFormat
+    $format.Alignment = [Drawing.StringAlignment]::Far  # Alinhamento à direita
     
     foreach ($line in $lines) {
         $currentFont = if ($line -match "LABORATÓRIO|\[.*\]") { $boldFont } else { $font }
-        
+        $xPosition = $sender.Width - 20  # Margem direita de 20px
+
         # Sombra
         $e.Graphics.DrawString(
             $line,
             $currentFont,
-            $shadowColor,
-            [Drawing.Rectangle]::FromLTRB(2, $y + 2, $sender.Width - 5, $sender.Height),
-            (New-Object Drawing.StringFormat([Drawing.StringFormatFlags]::NoWrap))
+            $shadowBrush,
+            [Drawing.PointF]::new($xPosition - 2, $y + 2),
+            $format
         )
         
-        # Texto
+        # Texto principal
         $e.Graphics.DrawString(
             $line,
             $currentFont,
             [Drawing.Brushes]::White,
-            [Drawing.Rectangle]::FromLTRB(0, $y, $sender.Width - 5, $sender.Height),
-            (New-Object Drawing.StringFormat([Drawing.StringFormatFlags]::NoWrap))
+            [Drawing.PointF]::new($xPosition, $y),
+            $format
         )
         
         $y += 24
