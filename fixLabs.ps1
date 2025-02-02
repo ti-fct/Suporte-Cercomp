@@ -353,19 +353,18 @@ function AvisoDesk {
         $scriptUrl = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.ps1"
         $installPath = "$env:ProgramData\UFG\Scripts\avisoLabs.ps1"
         
-        # Configuração da tarefa
+        # Configuração correta da tarefa
         $action = New-ScheduledTaskAction `
-            -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -Argument "-NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
+            -Execute "powershell.exe" `
+            -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
 
         $trigger = New-ScheduledTaskTrigger -AtLogOn
-        $principal = New-ScheduledTaskPrincipal -UserId "Users" -LogonType Interactive -RunLevel Highest
+        $principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 
         $settings = New-ScheduledTaskSettingsSet `
             -AllowStartIfOnBatteries `
             -DontStopIfGoingOnBatteries `
-            -StartWhenAvailable `
-            -MultipleInstances IgnoreNew
+            -StartWhenAvailable
 
         # Verificação de instalação
         $taskExists = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
@@ -386,19 +385,19 @@ function AvisoDesk {
             # Criar estrutura de diretórios
             $scriptDir = Split-Path $installPath
             if (-not (Test-Path $scriptDir)) {
-                $null = New-Item -Path $scriptDir -ItemType Directory -Force
+                New-Item -Path $scriptDir -ItemType Directory -Force | Out-Null
             }
 
             # Baixar script
             try {
                 Invoke-WebRequest $scriptUrl -OutFile $installPath -UseBasicParsing
-                Unblock-File -Path $installPath
+                Unblock-File -Path $installPath -ErrorAction SilentlyContinue
             }
             catch {
                 throw "Falha no download: $($_.Exception.Message)"
             }
 
-            # Registrar tarefa
+            # Registrar tarefa corretamente
             $taskParams = @{
                 TaskName    = $taskName
                 Trigger     = $trigger
@@ -409,11 +408,6 @@ function AvisoDesk {
             }
 
             Register-ScheduledTask @taskParams -Force | Out-Null
-
-            # Configurar permissões
-            $taskPath = "\$taskName"
-            $command = "schtasks /CHANGE /TN '$taskPath' /RU 'NT AUTHORITY\INTERACTIVE'"
-            cmd.exe /c $command | Out-Null
 
             Write-Host "[✅] Sistema instalado com sucesso!" -ForegroundColor Green
             Write-Host "[ℹ] A mensagem aparecerá em todos os logins de usuário" -ForegroundColor Cyan
