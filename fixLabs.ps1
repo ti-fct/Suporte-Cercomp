@@ -353,16 +353,13 @@ function AvisoDesk {
         $scriptUrl = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.ps1"
         $installPath = "$env:ProgramData\UFG\Scripts\avisoLabs.ps1"
         
-        # Configuração melhorada da tarefa
+        # Configuração da tarefa
+        $action = New-ScheduledTaskAction `
+            -Execute "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+            -Argument "-NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
+
         $trigger = New-ScheduledTaskTrigger -AtLogOn
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-            -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
-        
-        # Configuração de segurança corrigida
-        $principal = New-ScheduledTaskPrincipal `
-            -GroupId "Users" `
-            -LogonType Interactive `
-            -RunLevel Highest
+        $principal = New-ScheduledTaskPrincipal -UserId "Users" -LogonType Interactive -RunLevel Highest
 
         $settings = New-ScheduledTaskSettingsSet `
             -AllowStartIfOnBatteries `
@@ -370,7 +367,7 @@ function AvisoDesk {
             -StartWhenAvailable `
             -MultipleInstances IgnoreNew
 
-        # Verificação melhorada da instalação
+        # Verificação de instalação
         $taskExists = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 
         if ($taskExists) {
@@ -386,45 +383,44 @@ function AvisoDesk {
         else {
             Write-Host "`n[🚨] Instalando sistema de avisos..." -ForegroundColor Cyan
             
-            # Garante o diretório e permissões
-            $null = New-Item -Path (Split-Path $installPath) -ItemType Directory -Force
-            icacls (Split-Path $installPath) /grant:r "Todos:(RX)" /inheritance:e /t | Out-Null
+            # Criar estrutura de diretórios
+            $scriptDir = Split-Path $installPath
+            if (-not (Test-Path $scriptDir)) {
+                $null = New-Item -Path $scriptDir -ItemType Directory -Force
+            }
 
-            # Download seguro do script
+            # Baixar script
             try {
-                Invoke-WebRequest $scriptUrl -OutFile $installPath -UseBasicParsing -DisableCache
+                Invoke-WebRequest $scriptUrl -OutFile $installPath -UseBasicParsing
+                Unblock-File -Path $installPath
             }
             catch {
-                throw "Falha no download do script: $($_.Exception.Message)"
+                throw "Falha no download: $($_.Exception.Message)"
             }
 
-            # Criação da tarefa com visibilidade global
+            # Registrar tarefa
             $taskParams = @{
                 TaskName    = $taskName
                 Trigger     = $trigger
                 Action      = $action
                 Principal   = $principal
                 Settings    = $settings
-                Description = "Exibe avisos institucionais no login"
-                Force       = $true
+                Description = "Exibe aviso institucional no login"
             }
 
-            Register-ScheduledTask @taskParams | Out-Null
+            Register-ScheduledTask @taskParams -Force | Out-Null
 
-            # Teste imediato
-            try {
-                & 'powershell.exe' -WindowStyle Hidden -File $installPath
-                Write-Host "[✅] Teste de exibição realizado!" -ForegroundColor Green
-            }
-            catch {
-                Write-Host "[⚠] O script instalou mas o teste falhou: $($_.Message)" -ForegroundColor Yellow
-            }
+            # Configurar permissões
+            $taskPath = "\$taskName"
+            $command = "schtasks /CHANGE /TN '$taskPath' /RU 'NT AUTHORITY\INTERACTIVE'"
+            cmd.exe /c $command | Out-Null
 
-            Write-Host "[ℹ] Tarefa criada para TODOS os usuários no Agendador de Tarefas" -ForegroundColor Cyan
+            Write-Host "[✅] Sistema instalado com sucesso!" -ForegroundColor Green
+            Write-Host "[ℹ] A mensagem aparecerá em todos os logins de usuário" -ForegroundColor Cyan
         }
     }
     catch {
-        Write-Host "[❗] Falha crítica: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "[❗] Erro crítico: $($_.Exception.Message)" -ForegroundColor Red
     }
     finally {
         Invoke-PressKey
