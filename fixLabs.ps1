@@ -283,48 +283,54 @@ function Limpeza-Labs {
         Where-Object { $_.Caption -like "*@*" -and -not $_.LocalAccount } | 
         ForEach-Object { net user $_.Name /delete 2>$null }
 
-        # 4. Limpeza dos Browsers
+        # 4. Limpeza dos Browsers 
         Write-Host "├─ Encerrando processos dos navegadores..." -ForegroundColor Yellow
-        $browserProcessNames = @("chrome", "firefox", "msedge", "opera", "iexplore")
-        foreach ($procName in $browserProcessNames) {
-            Get-Process -Name $procName -ErrorAction SilentlyContinue | ForEach-Object {
-                Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-                Write-Host "Processo $($_.Name) finalizado." -ForegroundColor Magenta
-            }
-        }
+        $browserProcessNames = @("chrome", "firefox", "msedge", "opera", "iexplore", "msedgewebview2")
         
-		Write-Host "├─ Removendo dados dos navegadores..." -ForegroundColor Yellow
+        # Força o encerramento de todos os processos relacionados
+        $browserProcessNames | ForEach-Object {
+            Get-Process -Name $_ -ErrorAction SilentlyContinue | 
+            Stop-Process -Force -ErrorAction SilentlyContinue
+        }
 
-        # Caminhos dos perfis dos navegadores
-        $chromePath  = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
-        $firefoxPath = Join-Path $env:APPDATA "Mozilla\Firefox\Profiles"
-        $edgePath    = Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data"
-        $operaPath   = Join-Path $env:APPDATA "Opera Software"
+        # Aguarda para garantir finalização completa
+        Start-Sleep -Seconds 3
 
-        # Função para remover diretório se existir
-        function Remove-ProfileFolder ($path, $browserName) {
-            if (Test-Path $path) {
-                Write-Host "Resetando $browserName..." -ForegroundColor Green
-                try {
-                    Remove-Item -Path $path -Recurse -Force -ErrorAction Stop
-                    Write-Host "$browserName resetado com sucesso." -ForegroundColor Green
-                }
-                catch {
-                    Write-Host "Erro ao resetar ${browserName}: $_" -ForegroundColor Red
+        Write-Host "├─ Removendo dados dos navegadores..." -ForegroundColor Yellow
+
+        # Configuração dos caminhos críticos
+        $browserDataPaths = @(
+            @{ Path = "$env:LOCALAPPDATA\Google\Chrome\User Data";   Name = "Chrome" }
+            @{ Path = "$env:APPDATA\Mozilla\Firefox\Profiles";       Name = "Firefox" }
+            @{ Path = "$env:LOCALAPPDATA\Microsoft\Edge\User Data";  Name = "Edge" }
+            @{ Path = "$env:APPDATA\Opera Software";                 Name = "Opera" }
+        )
+
+        # Remove dados de cada navegador
+        foreach ($browser in $browserDataPaths) {
+            try {
+                if (Test-Path $browser.Path) {
+                    Write-Host "├─ Resetando $($browser.Name)..." -ForegroundColor Cyan
+                    Remove-Item $browser.Path -Recurse -Force -ErrorAction Stop
+                    Write-Host "│  ✅ $($browser.Name) limpo com sucesso" -ForegroundColor Green
                 }
             }
-            else {
-                Write-Host "Pasta de dados do $browserName não encontrada." -ForegroundColor Yellow
+            catch {
+                Write-Host "│  ❌ Erro no $($browser.Name): $($_.Exception.Message)" -ForegroundColor Red
             }
         }
 
-        # Resetando os navegadores
-        Remove-ProfileFolder -path $chromePath -browserName "Google Chrome"
-        Remove-ProfileFolder -path $firefoxPath -browserName "Mozilla Firefox"
-        Remove-ProfileFolder -path $edgePath -browserName "Microsoft Edge"
-        Remove-ProfileFolder -path $operaPath -browserName "Opera"
-
-        Write-Host "`nProcesso concluído. Reinicie os navegadores para que os perfis sejam recriados com as configurações padrão." -ForegroundColor Yellow
+        # Limpeza adicional de caches
+        Write-Host "├─ Limpando caches temporários..." -ForegroundColor Yellow
+        $tempPaths = @(
+            "$env:TEMP\*",
+            "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*",
+            "$env:LOCALAPPDATA\Google\Chrome\Cache\*"
+        )
+        
+        $tempPaths | ForEach-Object {
+            Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue
+        }
 
         # 5. Limpeza do sistema
         Write-Host "├─ Executando limpeza final..." -ForegroundColor Yellow
