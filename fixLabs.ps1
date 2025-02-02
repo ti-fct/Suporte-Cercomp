@@ -283,64 +283,26 @@ function Limpeza-Labs {
         Where-Object { $_.Caption -like "*@*" -and -not $_.LocalAccount } | 
         ForEach-Object { net user $_.Name /delete 2>$null }
 
-        # 4. Limpeza dos Browsers 
-        Write-Host "├─ Encerrando processos dos navegadores..." -ForegroundColor Yellow
-        $browserProcessNames = @("chrome", "firefox", "msedge", "opera", "iexplore", "msedgewebview2")
-        
-        # Força o encerramento de todos os processos relacionados
-        $browserProcessNames | ForEach-Object {
-            Get-Process -Name $_ -ErrorAction SilentlyContinue | 
-            Stop-Process -Force -ErrorAction SilentlyContinue
-        }
+        # 4. Limpeza dos Browsers
 
-        # Aguarda para garantir finalização completa
-        Start-Sleep -Seconds 3
+# Finaliza processo dos navegadores
 
-        Write-Host "├─ Removendo dados dos navegadores..." -ForegroundColor Yellow
+# Caminhos dos perfis dos navegadores
 
-        # Configuração dos caminhos críticos
-        $browserDataPaths = @(
-            @{ Path = "$env:LOCALAPPDATA\Google\Chrome\User Data";   Name = "Chrome" }
-            @{ Path = "$env:APPDATA\Mozilla\Firefox\Profiles";       Name = "Firefox" }
-            @{ Path = "$env:LOCALAPPDATA\Microsoft\Edge\User Data";  Name = "Edge" }
-            @{ Path = "$env:APPDATA\Opera Software";                 Name = "Opera" }
-        )
+# Função para remover diretório se existir
 
-        # Remove dados de cada navegador
-        foreach ($browser in $browserDataPaths) {
-            try {
-                if (Test-Path $browser.Path) {
-                    Write-Host "├─ Resetando $($browser.Name)..." -ForegroundColor Cyan
-                    Remove-Item $browser.Path -Recurse -Force -ErrorAction Stop
-                    Write-Host "│  ✅ $($browser.Name) limpo com sucesso" -ForegroundColor Green
-                }
-            }
-            catch {
-                Write-Host "│  ❌ Erro no $($browser.Name): $($_.Exception.Message)" -ForegroundColor Red
-            }
-        }
+# Resetando os navegadores
 
-        # Limpeza adicional de caches
-        Write-Host "├─ Limpando caches temporários..." -ForegroundColor Yellow
-        $tempPaths = @(
-            "$env:TEMP\*",
-            "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*",
-            "$env:LOCALAPPDATA\Google\Chrome\Cache\*"
-        )
-        
-        $tempPaths | ForEach-Object {
-            Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue
-        }
 
         # 5. Limpeza do sistema
         Write-Host "├─ Executando limpeza final..." -ForegroundColor Yellow
 		# Defina o caminho correto do registro
-        $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+$RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
 
-        # Para cada chave em VolumeCaches, configure a propriedade que habilita a opção de limpeza
-        Get-ChildItem -Path $RegistryPath | ForEach-Object { 
-            Set-ItemProperty -Path $_.PSPath -Name StateFlags001 -Value 2 
-        }
+# Para cada chave em VolumeCaches, configure a propriedade que habilita a opção de limpeza
+Get-ChildItem -Path $RegistryPath | ForEach-Object { 
+    Set-ItemProperty -Path $_.PSPath -Name StateFlags001 -Value 2 
+}
 
         Start-Process -FilePath cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
 
