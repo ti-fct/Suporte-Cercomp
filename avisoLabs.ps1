@@ -45,12 +45,12 @@ IP Local: $(Get-LocalIP)
 chamado.ufg.br
 "@
 
-# Configurações de estilo
+# Configurações de estilo (CORREÇÕES APLICADAS AQUI)
 $font = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 13, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::FromArgb(30,30,30) # Cinza escuro
-$shadowOffset = 2
+$shadowColor = [System.Drawing.Color]::FromArgb(255, 30, 30, 30)  # Alpha total corrigido
+$shadowOffset = 3  # Offset aumentado
 $maxWidth = 500
 $lineHeight = 22
 
@@ -82,7 +82,7 @@ $label.BackColor = [System.Drawing.Color]::Transparent
 $label.Size = $form.Size
 $label.TextAlign = [System.Drawing.ContentAlignment]::TopRight
 
-# Desenho aprimorado
+# Desenho corrigido (PRINCIPAIS ALTERAÇÕES)
 $label.Add_Paint({
     param($sender, $e)
     
@@ -93,7 +93,6 @@ $label.Add_Paint({
     $sections = $message -split "`n"
     
     foreach ($section in $sections) {
-        # Verificação de estilo condicional
         if ($section -match "▔") {
             $e.Graphics.DrawLine(
                 [System.Drawing.Pens]::Gray,
@@ -104,14 +103,13 @@ $label.Add_Paint({
             continue
         }
 
-        # Lógica corrigida para versões antigas do PowerShell
         if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS") {
             $currentFont = $boldFont
         } else {
             $currentFont = $font
         }
 
-        # Sombra melhorada
+        # Sombra corrigida
         $e.Graphics.DrawString(
             $section,
             $currentFont,
@@ -119,7 +117,7 @@ $label.Add_Paint({
             (New-Object Drawing.RectangleF(
                 $shadowOffset,
                 $yPos + $shadowOffset,
-                $sender.Width - ($shadowOffset * 2),
+                $sender.Width - $shadowOffset,  # Largura corrigida
                 $lineHeight
             )),
             $format
