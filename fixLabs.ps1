@@ -33,12 +33,12 @@ function Show-Menu {
     Write-Host " 2. 💻 Alterar Nome do Computador" -ForegroundColor Cyan
     Write-Host " 3. 🏛 Aplicar GPOs da FCT" -ForegroundColor Blue
     Write-Host " 4. 🧹 Restaurar GPOs Padrão do Windows" -ForegroundColor DarkYellow
-    Write-Host " 5. 🔄 Atualizar GPOs (Usar após aplicar ou restaurar as GPOs)" -ForegroundColor Green
+    Write-Host " 5. 🔄 Atualizar GPOs" -ForegroundColor Green
     Write-Host " 6. 🛒 Reset Windows Store" -ForegroundColor Blue
-    Write-Host " 7. 🔓 Habilitar Acesso SMB no Win11 24H2" -ForegroundColor DarkCyan
-    Write-Host " 8. 🧼 Labs Limpeza Geral do Windows (Beta)" -ForegroundColor DarkCyan
+    Write-Host " 7. 🔓 Habilitar Acesso SMB" -ForegroundColor DarkCyan
+    Write-Host " 8. 🧼 Limpeza Geral do Windows" -ForegroundColor DarkCyan
     Write-Host " 9. 🚀 Reiniciar Computador" -ForegroundColor Red
-    Write-Host " 10. ❌ Sair do Script" -ForegroundColor DarkGray
+    Write-Host " 10. ❌ Sair" -ForegroundColor DarkGray
     Write-Host "══════════════════════════════════════════════════════════" -ForegroundColor Cyan
 }
 
@@ -49,7 +49,7 @@ function Invoke-PressKey {
 function Testar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         Write-Host "[⚠] Elevando privilégios..." -ForegroundColor Yellow
-        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm RAW_URL_MAIN | iex`"" -Verb RunAs
+        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fixLabs.ps1 | iex`"" -Verb RunAs
         exit
     }
 }
@@ -251,8 +251,12 @@ function Habilitar-Smb {
 
 function Limpeza-Labs {
     try {
-        Write-Host "`n[🧼] Iniciando limpeza completa do Windows e usuários..." -ForegroundColor DarkCyan
+        Write-Host "`n[🧼] Iniciando limpeza completa..." -ForegroundColor DarkCyan
 
+        # Fechar navegadores antes de limpar
+        Write-Host "├─ Fechando navegadores..." -ForegroundColor Yellow
+        Get-Process -Name "chrome", "msedge", "firefox" -ErrorAction SilentlyContinue | Stop-Process -Force
+		
         # 1. Limpeza de arquivos do labs
         Write-Host "├─ Limpando arquivos dos labs (Downloads e Desktop).." -ForegroundColor Yellow
         Get-ChildItem "C:\Users\*\Downloads\*" -ErrorAction SilentlyContinue | 
@@ -301,14 +305,14 @@ function Limpeza-Labs {
 
         # 5. Configuração do Clean Manager
         Write-Host "├─ Preparando limpeza de arquivos do sistema..." -ForegroundColor Yellow
-        $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
-        
-        if (Test-Path $RegistryPath) {
-            Get-ChildItem $RegistryPath | ForEach-Object {
-                $key = $_.PSPath
-                Set-ItemProperty -Path $key -Name "StateFlags0001" -Value 2 -Type DWord -Force
-            }
-        }
+		$RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+				if (Test-Path $RegistryPath) {
+					Get-ChildItem $RegistryPath | ForEach-Object {
+						if (Get-ItemProperty -Path $_.PSPath -Name "StateFlags0001" -ErrorAction SilentlyContinue) {
+							Set-ItemProperty -Path $_.PSPath -Name "StateFlags0001" -Value 2 -Force
+						}
+					}
+				}
 
         # Executa limpeza automatizada
         Start-Process cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
@@ -358,7 +362,8 @@ Testar-Admin
 while ($true) {
     try {
         Show-Menu
-        switch (Read-Host "`nSelecione uma opção [1-10]") {
+        $opcao = Read-Host "`nSelecione uma opção [1-10]"
+        switch ($opcao) {
             '1'  { Listar-ProgramasInstalados }
             '2'  { Alterar-NomeComputador }
             '3'  { Aplicar-GPOsFCT }
@@ -376,7 +381,7 @@ while ($true) {
         }
     }
     catch {
-        Write-Host "[❗] Erro não tratado: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "[❗] Erro: $($_.Exception.Message)" -ForegroundColor Red
         Invoke-PressKey
     }
 }
