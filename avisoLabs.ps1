@@ -66,7 +66,7 @@ $positionX = $screenWidth - ($maxWidth + 40)
 # Criação da janela
 $form = New-Object Windows.Forms.Form
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
-$form.BackColor = 'Magenta'
+$form.BackColor = 'Black'
 $form.TransparencyKey = $form.BackColor
 $form.StartPosition = 'Manual'
 $form.Location = New-Object Drawing.Point($positionX, 40)
