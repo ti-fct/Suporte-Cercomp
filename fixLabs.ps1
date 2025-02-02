@@ -347,11 +347,55 @@ function Limpeza-Labs {
     }
 }
 
-
 function AvisoDesk {
-    # Implementação futura
-    Write-Host "`n[🚨] Funcionalidade em desenvolvimento..." -ForegroundColor Yellow
-    Invoke-PressKey
+    try {
+        $taskName = "UFG Aviso Laboratório"
+        $scriptUrl = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.ps1"
+        $installPath = "$env:ProgramData\UFG\Scripts\avisoLabs.ps1"
+        $trigger = New-ScheduledTaskTrigger -AtLogOn
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installPath`""
+        $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+        # Verificar se já está instalado
+        $taskExists = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+
+        if ($taskExists) {
+            Write-Host "`n[⚠] Sistema de avisos já está instalado!" -ForegroundColor Yellow
+            $choice = Read-Host "Deseja remover? (S/N)"
+            
+            if ($choice -eq 'S') {
+                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+                Remove-Item $installPath -Force -ErrorAction SilentlyContinue
+                Write-Host "[✅] Aviso desinstalado com sucesso!" -ForegroundColor Green
+            }
+        }
+        else {
+            Write-Host "`n[🚨] Instalando sistema de avisos..." -ForegroundColor Cyan
+            
+            # Criar estrutura de diretórios
+            $null = New-Item -Path (Split-Path $installPath) -ItemType Directory -Force
+            
+            # Baixar script
+            Invoke-WebRequest $scriptUrl -OutFile $installPath -UseBasicParsing
+            
+            # Criar tarefa
+            Register-ScheduledTask -TaskName $taskName `
+                -Trigger $trigger `
+                -Action $action `
+                -Principal $principal `
+                -Description "Exibe avisos institucionais no login" `
+                -Force | Out-Null
+
+            Write-Host "[✅] Aviso configurado para exibir em todas as sessões!" -ForegroundColor Green
+            Write-Host "[ℹ] Script instalado em: $installPath" -ForegroundColor Cyan
+        }
+    }
+    catch {
+        Write-Host "[❗] Falha na operação: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    finally {
+        Invoke-PressKey
+    }
 }
 
 # Execução Principal
