@@ -4,8 +4,6 @@
 
 Repositório oficial de scripts PowerShell para administração de sistemas e laboratórios da Faculdade de Ciências e Tecnologia (FCT/UFG).  
 
-🔧 **Ferramentas atualizadas** | 🚀 **Prontas para produção** | 📜 **Documentação clara**
-
 ---
 
 ## 📂 Scripts Disponíveis
@@ -99,5 +97,3 @@ Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) para mais detalhes.
 <p align="center">
 <img src="https://img.shields.io/badge/Powered%20by-PowerShell-blue?style=for-the-badge&logo=powershell" alt="Powered by PowerShell">
 </p>
-
-```
