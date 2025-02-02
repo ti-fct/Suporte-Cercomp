@@ -1,4 +1,5 @@
 #Requires -Version 5
+#Requires -RunAsAdministrator
 
 <#
 .SYNOPSIS
@@ -6,18 +7,18 @@
 .DESCRIPTION
     Exibe informações institucionais e de segurança no canto superior direito
 .NOTES
-    Versão: 5
+    Versão: 6
     Autor: Departamento de TI FCT/UFG
 #>
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
+# Função otimizada para obter IP
 function Get-LocalIP {
     try {
-        $ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*' -ErrorAction Stop | 
-            Where-Object { $_.PrefixOrigin -ne 'WellKnown' }).IPAddress
-        return ($ip -split '\n')[0]
+        return (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*' -ErrorAction Stop | 
+            Where-Object { $_.PrefixOrigin -ne 'WellKnown' } | Select-Object -First 1).IPAddress
     }
     catch {
         return "IP não detectado"
@@ -34,7 +35,7 @@ IP Local: $(Get-LocalIP)
 [REGRAS DE USO]
 • Uso exclusivo para atividades acadêmicas
 • Não alterar configurações do sistema
-• Não consumir alimentos no labortatório
+• Não consumir alimentos no laboratório
 
 [PROCEDIMENTOS AO SAIR]
 1. Encerre todos os aplicativos
@@ -45,23 +46,25 @@ IP Local: $(Get-LocalIP)
 chamado.ufg.br
 "@
 
-# Configurações de estilo (CORREÇÕES APLICADAS AQUI)
+# Configurações de estilo
 $font = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Regular)
 $boldFont = New-Object Drawing.Font("Segoe UI", 13, [Drawing.FontStyle]::Bold)
 $textColor = [System.Drawing.Color]::White
-$shadowColor = [System.Drawing.Color]::FromArgb(255, 30, 30, 30)  # Alpha total corrigido
-$shadowOffset = 3  # Offset aumentado
+$shadowColor = [System.Drawing.Color]::FromArgb(255, 30, 30, 30)
+$shadowOffset = 3
 $maxWidth = 500
 $lineHeight = 22
 
+# Posicionamento dinâmico
 try {
-    $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width
+    $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+    $positionX = $screen.Bounds.Width - ($maxWidth + 40)
+    $positionY = 40
 }
 catch {
-    $screenWidth = 1920
+    $positionX = 1400
+    $positionY = 40
 }
-
-$positionX = $screenWidth - ($maxWidth + 40)
 
 # Criação da janela
 $form = New-Object Windows.Forms.Form
@@ -69,9 +72,9 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.BackColor = 'Black'
 $form.TransparencyKey = $form.BackColor
 $form.StartPosition = 'Manual'
-$form.Location = New-Object Drawing.Point($positionX, 40)
+$form.Location = New-Object Drawing.Point($positionX, $positionY)
 $form.Size = New-Object Drawing.Size($maxWidth, 480)
-$form.TopMost = $false
+$form.TopMost = $true
 $form.ShowInTaskbar = $false
 
 # Controle personalizado
@@ -82,7 +85,7 @@ $label.BackColor = [System.Drawing.Color]::Transparent
 $label.Size = $form.Size
 $label.TextAlign = [System.Drawing.ContentAlignment]::TopRight
 
-# Desenho corrigido (PRINCIPAIS ALTERAÇÕES)
+# Desenho otimizado
 $label.Add_Paint({
     param($sender, $e)
     
@@ -103,13 +106,9 @@ $label.Add_Paint({
             continue
         }
 
-        if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS") {
-            $currentFont = $boldFont
-        } else {
-            $currentFont = $font
-        }
+        $currentFont = if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS") { $boldFont } else { $font }
 
-        # Sombra corrigida
+        # Sombra
         $e.Graphics.DrawString(
             $section,
             $currentFont,
@@ -117,13 +116,13 @@ $label.Add_Paint({
             (New-Object Drawing.RectangleF(
                 $shadowOffset,
                 $yPos + $shadowOffset,
-                $sender.Width - $shadowOffset,  # Largura corrigida
+                $sender.Width - $shadowOffset,
                 $lineHeight
             )),
             $format
         )
         
-        # Texto principal
+        # Texto
         $e.Graphics.DrawString(
             $section,
             $currentFont,
@@ -143,7 +142,5 @@ $label.Add_Paint({
 
 $form.Controls.Add($label)
 
-# Execução
-if ([Environment]::UserInteractive) {
-    [void]$form.ShowDialog()
-}
+# Execução persistente
+[void]$form.ShowDialog()
