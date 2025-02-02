@@ -71,6 +71,7 @@ Repositório oficial de scripts PowerShell para administração de sistemas e la
 - Backup automatizado de estações.
 - Monitoramento de hardware em tempo real.
 - Melhorias na documentação e exemplos de uso.
+- Lista de softwares usados
 
 ---
 
@@ -100,9 +101,3 @@ Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) para mais detalhes.
 </p>
 
 ```
-
-### Personalize
-
-- Substitua `https://github.com/seu-usuario/seu-repositorio.git` pelo link real do seu repositório.
-- Adicione ou ajuste seções conforme novos scripts forem incluídos.
-- Atualize o e-mail de suporte (`ti@fct.ufg.br`) se necessário.
