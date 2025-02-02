@@ -1,5 +1,3 @@
-Verifique se tem algum erro no codigo e corriga a parte do menu e de Limpeza Clean Manager ela não selecionou todas as opções para limpeza completa do windows.
-
 #Requires -Version 5
 #Requires -RunAsAdministrator
 
