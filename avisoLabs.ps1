@@ -1,13 +1,12 @@
 #Requires -Version 5
-#Requires -RunAsAdministrator
 
 <#
 .SYNOPSIS
     Sistema de avisos para laboratórios - FCT/UFG
 .DESCRIPTION
-    Exibe informações institucionais e de segurança no canto superior direito
+    Exibe informações institucionais e de segurança no desktop
 .NOTES
-    Versão: 6
+    Versão: 7
     Autor: Departamento de TI FCT/UFG
 #>
 
@@ -17,7 +16,7 @@ Add-Type -AssemblyName System.Drawing
 # Função otimizada para obter IP
 function Get-LocalIP {
     try {
-        return (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*' -ErrorAction Stop | 
+        return (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*','Wi-Fi*' -ErrorAction Stop | 
             Where-Object { $_.PrefixOrigin -ne 'WellKnown' } | Select-Object -First 1).IPAddress
     }
     catch {
@@ -55,16 +54,10 @@ $shadowOffset = 3
 $maxWidth = 500
 $lineHeight = 22
 
-# Posicionamento dinâmico
-try {
-    $screen = [System.Windows.Forms.Screen]::PrimaryScreen
-    $positionX = $screen.Bounds.Width - ($maxWidth + 40)
-    $positionY = 40
-}
-catch {
-    $positionX = 1400
-    $positionY = 40
-}
+# Encontrar área de trabalho corretamente
+$desktop = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+$positionX = $desktop.Width - ($maxWidth + 40)
+$positionY = 40
 
 # Criação da janela
 $form = New-Object Windows.Forms.Form
@@ -74,7 +67,7 @@ $form.TransparencyKey = $form.BackColor
 $form.StartPosition = 'Manual'
 $form.Location = New-Object Drawing.Point($positionX, $positionY)
 $form.Size = New-Object Drawing.Size($maxWidth, 480)
-$form.TopMost = $true
+$form.TopMost = $false  # Não ficar sobre outras janelas
 $form.ShowInTaskbar = $false
 
 # Controle personalizado
@@ -85,7 +78,7 @@ $label.BackColor = [System.Drawing.Color]::Transparent
 $label.Size = $form.Size
 $label.TextAlign = [System.Drawing.ContentAlignment]::TopRight
 
-# Desenho otimizado
+# Desenho corrigido
 $label.Add_Paint({
     param($sender, $e)
     
@@ -96,11 +89,13 @@ $label.Add_Paint({
     $sections = $message -split "`n"
     
     foreach ($section in $sections) {
-        if ($section -match "▔") {
+        if ($section -match "─") {
             $e.Graphics.DrawLine(
                 [System.Drawing.Pens]::Gray,
-                ($sender.Width - 400), ($yPos + 5),
-                ($sender.Width - 20), ($yPos + 5)
+                ($sender.Width - 400),
+                ($yPos + 5),
+                ($sender.Width - 20),
+                ($yPos + 5)
             )
             $yPos += 15
             continue
@@ -108,31 +103,35 @@ $label.Add_Paint({
 
         $currentFont = if ($section -match "LABORATÓRIO|REGRAS|PROCEDIMENTOS") { $boldFont } else { $font }
 
-        # Sombra
+        # Sombra corrigida
+        $rectShadow = New-Object Drawing.RectangleF(
+            [float]$shadowOffset,
+            [float]($yPos + $shadowOffset),
+            [float]($sender.Width - $shadowOffset),
+            [float]$lineHeight
+        )
+
         $e.Graphics.DrawString(
             $section,
             $currentFont,
             (New-Object Drawing.SolidBrush($shadowColor)),
-            (New-Object Drawing.RectangleF(
-                $shadowOffset,
-                $yPos + $shadowOffset,
-                $sender.Width - $shadowOffset,
-                $lineHeight
-            )),
+            $rectShadow,
             $format
         )
         
-        # Texto
+        # Texto principal
+        $rectText = New-Object Drawing.RectangleF(
+            [float]0,
+            [float]$yPos,
+            [float]$sender.Width,
+            [float]$lineHeight
+        )
+
         $e.Graphics.DrawString(
             $section,
             $currentFont,
             (New-Object Drawing.SolidBrush($textColor)),
-            (New-Object Drawing.RectangleF(
-                0,
-                $yPos,
-                $sender.Width,
-                $lineHeight
-            )),
+            $rectText,
             $format
         )
         
@@ -142,5 +141,6 @@ $label.Add_Paint({
 
 $form.Controls.Add($label)
 
-# Execução persistente
+# Execução independente do PowerShell
+$form.Add_Shown({ $form.Activate() })
 [void]$form.ShowDialog()
