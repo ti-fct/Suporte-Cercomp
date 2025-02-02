@@ -352,11 +352,25 @@ function AvisoDesk {
         $taskName = "UFG Aviso Laboratório"
         $scriptUrl = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.ps1"
         $installPath = "$env:ProgramData\UFG\Scripts\avisoLabs.ps1"
+        
+        # Configuração melhorada da tarefa
         $trigger = New-ScheduledTaskTrigger -AtLogOn
-        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installPath`""
-        $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
+            -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
+        
+        # Configuração de segurança corrigida
+        $principal = New-ScheduledTaskPrincipal `
+            -GroupId "Users" `
+            -LogonType Interactive `
+            -RunLevel Highest
 
-        # Verificar se já está instalado
+        $settings = New-ScheduledTaskSettingsSet `
+            -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries `
+            -StartWhenAvailable `
+            -MultipleInstances IgnoreNew
+
+        # Verificação melhorada da instalação
         $taskExists = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 
         if ($taskExists) {
@@ -372,26 +386,45 @@ function AvisoDesk {
         else {
             Write-Host "`n[🚨] Instalando sistema de avisos..." -ForegroundColor Cyan
             
-            # Criar estrutura de diretórios
+            # Garante o diretório e permissões
             $null = New-Item -Path (Split-Path $installPath) -ItemType Directory -Force
-            
-            # Baixar script
-            Invoke-WebRequest $scriptUrl -OutFile $installPath -UseBasicParsing
-            
-            # Criar tarefa
-            Register-ScheduledTask -TaskName $taskName `
-                -Trigger $trigger `
-                -Action $action `
-                -Principal $principal `
-                -Description "Exibe avisos institucionais no login" `
-                -Force | Out-Null
+            icacls (Split-Path $installPath) /grant:r "Todos:(RX)" /inheritance:e /t | Out-Null
 
-            Write-Host "[✅] Aviso configurado para exibir em todas as sessões!" -ForegroundColor Green
-            Write-Host "[ℹ] Script instalado em: $installPath" -ForegroundColor Cyan
+            # Download seguro do script
+            try {
+                Invoke-WebRequest $scriptUrl -OutFile $installPath -UseBasicParsing -DisableCache
+            }
+            catch {
+                throw "Falha no download do script: $($_.Exception.Message)"
+            }
+
+            # Criação da tarefa com visibilidade global
+            $taskParams = @{
+                TaskName    = $taskName
+                Trigger     = $trigger
+                Action      = $action
+                Principal   = $principal
+                Settings    = $settings
+                Description = "Exibe avisos institucionais no login"
+                Force       = $true
+            }
+
+            Register-ScheduledTask @taskParams | Out-Null
+
+            # Teste imediato
+            try {
+                & 'powershell.exe' -WindowStyle Hidden -File $installPath
+                Write-Host "[✅] Teste de exibição realizado!" -ForegroundColor Green
+            }
+            catch {
+                Write-Host "[⚠] O script instalou mas o teste falhou: $($_.Message)" -ForegroundColor Yellow
+            }
+
+            Write-Host "[ℹ] Tarefa criada para TODOS os usuários no Agendador de Tarefas" -ForegroundColor Cyan
         }
     }
     catch {
-        Write-Host "[❗] Falha na operação: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "[❗] Falha crítica: $($_.Exception.Message)" -ForegroundColor Red
     }
     finally {
         Invoke-PressKey
