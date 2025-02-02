@@ -7,8 +7,8 @@
 .DESCRIPTION
     Execute com: irm RAW_URL_MAIN | iex
 .NOTES
-    Versão: 3
-    Autor: Departamento de TI UFG
+    Versão: 3.0
+    Autor: Departamento de TI UFG (Diego)
 #>
 
 function Show-Menu {
@@ -34,10 +34,11 @@ function Show-Menu {
     Write-Host " 3. 🏛 Aplicar GPOs da FCT" -ForegroundColor Blue
     Write-Host " 4. 🧹 Restaurar GPOs Padrão do Windows" -ForegroundColor DarkYellow
     Write-Host " 5. 🔄 Atualizar GPOs (Usar após aplicar ou restaurar as GPOs)" -ForegroundColor Green
-    Write-Host " 6. 🛒 Reset Windows Store (Usar após aplicar GPOs)" -ForegroundColor Blue
-    Write-Host " 7. 🧼 Labs Limpeza Geral do Windows (Beta)" -ForegroundColor DarkCyan
-    Write-Host " 8. 🚀 Reiniciar Computador" -ForegroundColor Red
-    Write-Host " 9. ❌ Sair do Script" -ForegroundColor DarkGray
+    Write-Host " 6. 🛒 Reset Windows Store" -ForegroundColor Blue
+    Write-Host " 7. 🔓 Habilitar Acesso SMB no Win11 24H2" -ForegroundColor DarkCyan
+    Write-Host " 8. 🧼 Labs Limpeza Geral do Windows (Beta)" -ForegroundColor DarkCyan
+    Write-Host " 9. 🚀 Reiniciar Computador" -ForegroundColor Red
+    Write-Host " 10. ❌ Sair do Script" -ForegroundColor DarkGray
     Write-Host "══════════════════════════════════════════════════════════" -ForegroundColor Cyan
 }
 
@@ -48,7 +49,7 @@ function Invoke-PressKey {
 function Testar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         Write-Host "[⚠] Elevando privilégios..." -ForegroundColor Yellow
-        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fct.ps1 | iex`"" -Verb RunAs
+        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm RAW_URL_MAIN | iex`"" -Verb RunAs
         exit
     }
 }
@@ -57,7 +58,7 @@ function Listar-ProgramasInstalados {
     try {
         $dateStamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $fileName = "apps-instalados-$dateStamp.txt"
-        $filePath = Join-Path -Path "C:\" -ChildPath $fileName
+        $filePath = Join-Path -Path $env:USERPROFILE -ChildPath "Desktop\$fileName"
 
         Write-Host "`n[🔍] Coletando dados de programas instalados..." -ForegroundColor Yellow
 
@@ -94,6 +95,11 @@ function Alterar-NomeComputador {
             $newName = Read-Host "`nDigite o novo nome (15 caracteres alfanuméricos)"
         } until ($newName -match '^[a-zA-Z0-9-]{1,15}$')
 
+        if ($newName -eq $currentName) {
+            Write-Host "[ℹ] O nome informado é igual ao atual." -ForegroundColor Yellow
+            return
+        }
+
         if ((Read-Host "`nConfirma alteração para '$newName'? (S/N)") -eq 'S') {
             Rename-Computer -NewName $newName -Force -ErrorAction Stop
             Write-Host "[✅] Nome alterado com sucesso!" -ForegroundColor Green
@@ -121,8 +127,11 @@ function Aplicar-GPOsFCT {
             Machine = "\\fog\gpos\machine.txt"
         }
 
-        if (-not (Test-Path $gpoPaths.User)) { throw "Arquivo User GPO não encontrado" }
-        if (-not (Test-Path $gpoPaths.Machine)) { throw "Arquivo Machine GPO não encontrado" }
+        $gpoPaths.GetEnumerator() | ForEach-Object {
+            if (-not (Test-Path $_.Value)) { 
+                throw "Arquivo $($_.Key) GPO não encontrado em $($_.Value)" 
+            }
+        }
 
         $gpoPaths.GetEnumerator() | ForEach-Object {
             Write-Host "├─ Aplicando política $($_.Key)..." -ForegroundColor Cyan
@@ -131,7 +140,7 @@ function Aplicar-GPOsFCT {
         }
 
         Write-Host "[✅] Políticas aplicadas com sucesso!" -ForegroundColor Green
-        Write-Host "[⚠] Recomenda-se reinicialização do sistema" -ForegroundColor Yellow
+        Write-Host "[⚠] Execute a opção 5 para atualizar as políticas" -ForegroundColor Yellow
     }
     catch {
         Write-Host "[❗] Falha na aplicação: $($_.Exception.Message)" -ForegroundColor Red
@@ -161,7 +170,7 @@ function Restaurar-PoliticasPadrao {
         }
 
         Write-Host "[✅] Restauração concluída!" -ForegroundColor Green
-        Write-Host "[⚠] Execute a opção 5 para atualizar as políticas" -ForegroundColor Yellow
+        gpupdate /force | Out-Null
     }
     catch {
         Write-Host "[❗] Erro na restauração: $($_.Exception.Message)" -ForegroundColor Red
@@ -197,24 +206,43 @@ function Reiniciar-LojaWindows {
 
         $etapas = @(
             @{Nome = "Resetando ACLs"; Comando = { icacls "C:\Program Files\WindowsApps" /reset /t /c /q | Out-Null } },
-            @{Nome = "Executando WSReset"; Comando = { Start-Process wsreset -NoNewWindow } },
-            @{Nome = "Finalizando processos"; Comando = { taskkill /IM wsreset.exe /IM WinStore.App.exe /F | Out-Null } }
+            @{Nome = "Executando WSReset"; Comando = { Start-Process wsreset -NoNewWindow -Wait } },
+            @{Nome = "Finalizando processos"; Comando = { 
+                Get-Process -Name WinStore.App, WSReset -ErrorAction SilentlyContinue | 
+                Stop-Process -Force -ErrorAction SilentlyContinue 
+            }}
         )
 
         foreach ($etapa in $etapas) {
             Write-Host "├─ $($etapa.Nome)..." -ForegroundColor Cyan
             & $etapa.Comando
-
-            if ($etapa.Nome -eq "Executando WSReset") {
-                Write-Host "│  Aguardando conclusão..." -ForegroundColor DarkGray
-                Start-Sleep -Seconds 30
-            }
         }
 
         Write-Host "[✅] Loja reinicializada com sucesso!`n" -ForegroundColor Green
     }
     catch {
         Write-Host "[❗] Falha no processo: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    finally {
+        Invoke-PressKey
+    }
+}
+
+function Habilitar-Smb {
+    try {
+        Write-Host "`n[🔓] Habilita SMB no Windows 24H2 para acesso ao \\fog..." -ForegroundColor Cyan
+        $currentSetting = (Get-SmbClientConfiguration).EnableInsecureGuestLogons
+        
+        if (-not $currentSetting) {
+            Set-SmbClientConfiguration -EnableInsecureGuestLogons $true -Force
+            Write-Host "[✅] Acesso SMB habilitado com sucesso!" -ForegroundColor Green
+        }
+        else {
+            Write-Host "[ℹ] Acesso SMB já está habilitado." -ForegroundColor Cyan
+        }
+    }
+    catch {
+        Write-Host "[❗] Falha na configuração: $($_.Exception.Message)" -ForegroundColor Red
     }
     finally {
         Invoke-PressKey
@@ -330,16 +358,17 @@ Testar-Admin
 while ($true) {
     try {
         Show-Menu
-        switch (Read-Host "`nSelecione uma opção [1-9]") {
-            '1' { Listar-ProgramasInstalados }
-            '2' { Alterar-NomeComputador }
-            '3' { Aplicar-GPOsFCT }
-            '4' { Restaurar-PoliticasPadrao }
-            '5' { Atualizar-PoliticasGrupo }
-            '6' { Reiniciar-LojaWindows }
-            '7' { Limpeza-Labs }
-            '8' { Reiniciar-Computador }
-            '9' { exit }
+        switch (Read-Host "`nSelecione uma opção [1-10]") {
+            '1'  { Listar-ProgramasInstalados }
+            '2'  { Alterar-NomeComputador }
+            '3'  { Aplicar-GPOsFCT }
+            '4'  { Restaurar-PoliticasPadrao }
+            '5'  { Atualizar-PoliticasGrupo }
+            '6'  { Reiniciar-LojaWindows }
+            '7'  { Habilitar-Smb }
+            '8'  { Limpeza-Labs }
+            '9'  { Reiniciar-Computador }
+            '10' { exit }
             default {
                 Write-Host "[❌] Opção inválida!" -ForegroundColor Red
                 Start-Sleep -Seconds 1
