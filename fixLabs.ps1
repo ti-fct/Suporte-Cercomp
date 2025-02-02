@@ -1,3 +1,5 @@
+Verifique se tem algum erro no codigo e corriga a parte do menu e de Limpeza Clean Manager ela não selecionou todas as opções para limpeza completa do windows.
+
 #Requires -Version 5
 #Requires -RunAsAdministrator
 
@@ -37,7 +39,7 @@ function Show-Menu {
     Write-Host " 6. 🛒 Reset Windows Store" -ForegroundColor Blue
     Write-Host " 7. 🔓 Habilitar Acesso SMB" -ForegroundColor DarkCyan
     Write-Host " 8. 🧼 Limpeza Geral do Windows" -ForegroundColor DarkCyan
-    Write-Host " 9. 🚀 Reiniciar Computador" -ForegroundColor Red
+    Write-Host " 9. 🚨 Adiciona Aviso no Desktop" -ForegroundColor Red
     Write-Host " 10. ❌ Sair" -ForegroundColor DarkGray
     Write-Host "══════════════════════════════════════════════════════════" -ForegroundColor Cyan
 }
@@ -304,16 +306,14 @@ function Limpeza-Labs {
                 }
             }
 
-        # 5. Configuração do Clean Manager
+        # 5. Limpeza Clean Manager (Corrigido)
         Write-Host "├─ Preparando limpeza de arquivos do sistema..." -ForegroundColor Yellow
-		$RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
-				if (Test-Path $RegistryPath) {
-					Get-ChildItem $RegistryPath | ForEach-Object {
-						if (Get-ItemProperty -Path $_.PSPath -Name "StateFlags0001" -ErrorAction SilentlyContinue) {
-							Set-ItemProperty -Path $_.PSPath -Name "StateFlags0001" -Value 2 -Force
-						}
-					}
-				}
+        $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+        if (Test-Path $RegistryPath) {
+            Get-ChildItem $RegistryPath | ForEach-Object {
+                Set-ItemProperty -Path $_.PSPath -Name "StateFlags0001" -Value 2 -Force -ErrorAction SilentlyContinue
+            }
+        }
 
         # Executa limpeza automatizada
         Start-Process cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
@@ -339,22 +339,11 @@ function Limpeza-Labs {
     }
 }
 
-function Reiniciar-Computador {
-    try {
-        Write-Host "`n[🚨] ATENÇÃO: Operação irreversível!" -ForegroundColor Red
-        $confirmacao = Read-Host "`nCONFIRME com 'REINICIAR' para prosseguir"
-        if ($confirmacao -eq 'REINICIAR') {
-            Write-Host "[⏳] Reinício em 15 segundos..." -ForegroundColor Yellow
-            shutdown /r /f /t 15
-            exit
-        }
-        else {
-            Write-Host "[❌] Operação cancelada" -ForegroundColor Red
-        }
-    }
-    finally {
-        Invoke-PressKey
-    }
+
+function AvisoDesk {
+    # Implementação futura
+    Write-Host "`n[🚨] Funcionalidade em desenvolvimento..." -ForegroundColor Yellow
+    Invoke-PressKey
 }
 
 # Execução Principal
@@ -373,7 +362,7 @@ while ($true) {
             '6'  { Reiniciar-LojaWindows }
             '7'  { Habilitar-Smb }
             '8'  { Limpeza-Labs }
-            '9'  { Reiniciar-Computador }
+            '9'  { AvisoDesk }
             '10' { exit }
             default {
                 Write-Host "[❌] Opção inválida!" -ForegroundColor Red
