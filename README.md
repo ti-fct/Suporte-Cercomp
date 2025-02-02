@@ -11,6 +11,7 @@ Repositório oficial de scripts PowerShell para administração de sistemas e la
 | Nome do Script         | Descrição                                                                                  | Versão |
 |------------------------|------------------------------------------------------------------------------------------|--------|
 | [**`avisoLabs.ps1`**](avisoLabs.ps1) | Exibe avisos institucionais e regras de uso em laboratórios (canto superior direito da tela). | `v5`   |
+| [**`fixLabs.ps1`**](fixLabs.ps1)               | Script modular para manutenção de labs com Windows para quem não tem AD (GPOs, limpeza, redes, etc.).           | `v3` |
 | [**`fct.ps1`**](fct.ps1)               | Script modular para manutenção de sistemas Windows (GPOs, limpeza, redes, etc.).           | `v2.7` |
 | *Em breve...*          | Novos scripts serão adicionados aqui!                                                    |        |
 
