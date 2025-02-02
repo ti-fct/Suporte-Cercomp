@@ -7,8 +7,8 @@
 .DESCRIPTION
     Execute com: irm RAW_URL_MAIN | iex
 .NOTES
-    Versão: 3.1
-    Autor: Departamento de TI UFG (Diego)
+    Versão: 3
+    Autor: Departamento de TI UFG
 #>
 
 function Show-Menu {
@@ -34,11 +34,10 @@ function Show-Menu {
     Write-Host " 3. 🏛 Aplicar GPOs da FCT" -ForegroundColor Blue
     Write-Host " 4. 🧹 Restaurar GPOs Padrão do Windows" -ForegroundColor DarkYellow
     Write-Host " 5. 🔄 Atualizar GPOs (Usar após aplicar ou restaurar as GPOs)" -ForegroundColor Green
-    Write-Host " 6. 🛒 Reset Windows Store" -ForegroundColor Blue
-    Write-Host " 7. 🔓 Habilitar Acesso SMB no Win11 24H2" -ForegroundColor DarkCyan
-    Write-Host " 8. 🧼 Labs Limpeza Geral do Windows (Beta)" -ForegroundColor DarkCyan
-    Write-Host " 9. 🚀 Reiniciar Computador" -ForegroundColor Red
-    Write-Host " 10. ❌ Sair do Script" -ForegroundColor DarkGray
+    Write-Host " 6. 🛒 Reset Windows Store (Usar após aplicar GPOs)" -ForegroundColor Blue
+    Write-Host " 7. 🧼 Labs Limpeza Geral do Windows (Beta)" -ForegroundColor DarkCyan
+    Write-Host " 8. 🚀 Reiniciar Computador" -ForegroundColor Red
+    Write-Host " 9. ❌ Sair do Script" -ForegroundColor DarkGray
     Write-Host "══════════════════════════════════════════════════════════" -ForegroundColor Cyan
 }
 
@@ -49,7 +48,7 @@ function Invoke-PressKey {
 function Testar-Admin {
     if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         Write-Host "[⚠] Elevando privilégios..." -ForegroundColor Yellow
-        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm RAW_URL_MAIN | iex`"" -Verb RunAs
+        Start-Process powershell "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fct.ps1 | iex`"" -Verb RunAs
         exit
     }
 }
@@ -58,7 +57,7 @@ function Listar-ProgramasInstalados {
     try {
         $dateStamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $fileName = "apps-instalados-$dateStamp.txt"
-        $filePath = Join-Path -Path $env:USERPROFILE -ChildPath "Desktop\$fileName"
+        $filePath = Join-Path -Path "C:\" -ChildPath $fileName
 
         Write-Host "`n[🔍] Coletando dados de programas instalados..." -ForegroundColor Yellow
 
@@ -95,11 +94,6 @@ function Alterar-NomeComputador {
             $newName = Read-Host "`nDigite o novo nome (15 caracteres alfanuméricos)"
         } until ($newName -match '^[a-zA-Z0-9-]{1,15}$')
 
-        if ($newName -eq $currentName) {
-            Write-Host "[ℹ] O nome informado é igual ao atual." -ForegroundColor Yellow
-            return
-        }
-
         if ((Read-Host "`nConfirma alteração para '$newName'? (S/N)") -eq 'S') {
             Rename-Computer -NewName $newName -Force -ErrorAction Stop
             Write-Host "[✅] Nome alterado com sucesso!" -ForegroundColor Green
@@ -127,11 +121,8 @@ function Aplicar-GPOsFCT {
             Machine = "\\fog\gpos\machine.txt"
         }
 
-        $gpoPaths.GetEnumerator() | ForEach-Object {
-            if (-not (Test-Path $_.Value)) { 
-                throw "Arquivo $($_.Key) GPO não encontrado em $($_.Value)" 
-            }
-        }
+        if (-not (Test-Path $gpoPaths.User)) { throw "Arquivo User GPO não encontrado" }
+        if (-not (Test-Path $gpoPaths.Machine)) { throw "Arquivo Machine GPO não encontrado" }
 
         $gpoPaths.GetEnumerator() | ForEach-Object {
             Write-Host "├─ Aplicando política $($_.Key)..." -ForegroundColor Cyan
@@ -140,7 +131,7 @@ function Aplicar-GPOsFCT {
         }
 
         Write-Host "[✅] Políticas aplicadas com sucesso!" -ForegroundColor Green
-        Write-Host "[⚠] Execute a opção 5 para atualizar as políticas" -ForegroundColor Yellow
+        Write-Host "[⚠] Recomenda-se reinicialização do sistema" -ForegroundColor Yellow
     }
     catch {
         Write-Host "[❗] Falha na aplicação: $($_.Exception.Message)" -ForegroundColor Red
@@ -170,7 +161,7 @@ function Restaurar-PoliticasPadrao {
         }
 
         Write-Host "[✅] Restauração concluída!" -ForegroundColor Green
-        gpupdate /force | Out-Null
+        Write-Host "[⚠] Execute a opção 5 para atualizar as políticas" -ForegroundColor Yellow
     }
     catch {
         Write-Host "[❗] Erro na restauração: $($_.Exception.Message)" -ForegroundColor Red
@@ -206,16 +197,18 @@ function Reiniciar-LojaWindows {
 
         $etapas = @(
             @{Nome = "Resetando ACLs"; Comando = { icacls "C:\Program Files\WindowsApps" /reset /t /c /q | Out-Null } },
-            @{Nome = "Executando WSReset"; Comando = { Start-Process wsreset -NoNewWindow -Wait } },
-            @{Nome = "Finalizando processos"; Comando = { 
-                Get-Process -Name WinStore.App, WSReset -ErrorAction SilentlyContinue | 
-                Stop-Process -Force -ErrorAction SilentlyContinue 
-            }}
+            @{Nome = "Executando WSReset"; Comando = { Start-Process wsreset -NoNewWindow } },
+            @{Nome = "Finalizando processos"; Comando = { taskkill /IM wsreset.exe /IM WinStore.App.exe /F | Out-Null } }
         )
 
         foreach ($etapa in $etapas) {
             Write-Host "├─ $($etapa.Nome)..." -ForegroundColor Cyan
             & $etapa.Comando
+
+            if ($etapa.Nome -eq "Executando WSReset") {
+                Write-Host "│  Aguardando conclusão..." -ForegroundColor DarkGray
+                Start-Sleep -Seconds 30
+            }
         }
 
         Write-Host "[✅] Loja reinicializada com sucesso!`n" -ForegroundColor Green
@@ -228,86 +221,72 @@ function Reiniciar-LojaWindows {
     }
 }
 
-function Habilitar-Smb {
-    try {
-        Write-Host "`n[🔓] Habilita SMB no Windows 24H2 para acesso ao \\fog..." -ForegroundColor Cyan
-        $currentSetting = (Get-SmbClientConfiguration).EnableInsecureGuestLogons
-        
-        if (-not $currentSetting) {
-            Set-SmbClientConfiguration -EnableInsecureGuestLogons $true -Force
-            Write-Host "[✅] Acesso SMB habilitado com sucesso!" -ForegroundColor Green
-        }
-        else {
-            Write-Host "[ℹ] Acesso SMB já está habilitado." -ForegroundColor Cyan
-        }
-    }
-    catch {
-        Write-Host "[❗] Falha na configuração: $($_.Exception.Message)" -ForegroundColor Red
-    }
-    finally {
-        Invoke-PressKey
-    }
-}
-
 function Limpeza-Labs {
     try {
         Write-Host "`n[🧼] Iniciando limpeza completa do Windows e usuários..." -ForegroundColor DarkCyan
 
-        # 1. Limpeza de arquivos dos usuários
-        Write-Host "├─ Limpando arquivos dos labs..." -ForegroundColor Yellow
-        $pathsToClean = @(
-            "C:\Users\*\Downloads\*",
-            "C:\Users\*\Desktop\*"
-        )
-        
-        $pathsToClean | ForEach-Object {
-            Get-ChildItem $_ -ErrorAction SilentlyContinue | 
-            Where-Object { $_.Name -ne "desktop.ini" -and (-not $_.PSIsContainer) } | 
+        # 1. Limpeza de arquivos do labs
+        Write-Host "├─ Limpando arquivos dos labs (Downloads e Desktop).." -ForegroundColor Yellow
+        Get-ChildItem "C:\Users\*\Downloads\*" -ErrorAction SilentlyContinue | 
+            Where-Object { $_.Name -ne "desktop.ini" } | 
             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        }
+        
+        Get-ChildItem "C:\Users\*\Desktop\*" -ErrorAction SilentlyContinue | 
+            Where-Object { (-not $_.PSIsContainer) -and ($_.Extension -ne ".lnk") } | 
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue 
 
-        # 2. Reset de configurações de sistema
-        Write-Host "├─ Restaurando configurações de rede e energia..." -ForegroundColor Yellow
-        $commands = @(
-            "powercfg /restoredefaultschemes",
-            "netsh winsock reset",
-            "netsh int ip reset",
-            "netsh advfirewall reset",
-            "ipconfig /flushdns"
-        )
-        $commands | ForEach-Object { Invoke-Expression $_ | Out-Null }
+        # 2. Reset de energia e rede
+        Write-Host "├─ Restaurando configurações de energia e rede..." -ForegroundColor Yellow
+        powercfg /restoredefaultschemes | Out-Null
+        netsh winsock reset | Out-Null
+        netsh int ip reset | Out-Null
+        netsh advfirewall reset | Out-Null
+        ipconfig /flushdns | Out-Null
 
-        # 3. Remoção de contas Microsoft
+        # 3. Remoção de contas Microsoft 
         Write-Host "├─ Removendo contas Microsoft..." -ForegroundColor Yellow
         Get-CimInstance -ClassName Win32_UserAccount -ErrorAction SilentlyContinue | 
-        Where-Object { $_.Caption -like "*@*" -and -not $_.LocalAccount } | 
-        ForEach-Object { net user $_.Name /delete 2>$null }
+            Where-Object { 
+                $_.Caption -like "*@*" -and $_.LocalAccount -eq $false
+            } | ForEach-Object {
+                net user $_.Name /delete 2>$null
+            }
 
-        # 4. Limpeza dos Browsers
+        # 4. Limpeza dos browsers (Chrome, Edge, Firefox)
+        Write-Host "├─ Removendo perfis de navegadores..." -ForegroundColor Yellow
+        Get-ChildItem -Path "C:\Users" -Directory | 
+            Where-Object { $_.Name -notin @('Public', 'Default', 'Administrator') } | 
+            ForEach-Object {
+                $userDir = $_.FullName
+                $paths = @(
+                    "$userDir\AppData\Local\Google\Chrome\User Data",
+                    "$userDir\AppData\Local\Microsoft\Edge\User Data",
+                    "$userDir\AppData\Roaming\Mozilla\Firefox\Profiles"
+                )
+                
+                $paths | ForEach-Object {
+                    if (Test-Path $_) {
+                        Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+                }
+            }
 
-# Finaliza processo dos navegadores
+        # 5. Configuração do Clean Manager
+        Write-Host "├─ Preparando limpeza de arquivos do sistema..." -ForegroundColor Yellow
+        $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
+        
+        if (Test-Path $RegistryPath) {
+            Get-ChildItem $RegistryPath | ForEach-Object {
+                $key = $_.PSPath
+                Set-ItemProperty -Path $key -Name "StateFlags0001" -Value 2 -Type DWord -Force
+            }
+        }
 
-# Caminhos dos perfis dos navegadores
+        # Executa limpeza automatizada
+        Start-Process cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
 
-# Função para remover diretório se existir
-
-# Resetando os navegadores
-
-
-        # 5. Limpeza do sistema
-        Write-Host "├─ Executando limpeza final..." -ForegroundColor Yellow
-		# Defina o caminho correto do registro
-$RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
-
-# Para cada chave em VolumeCaches, configure a propriedade que habilita a opção de limpeza
-Get-ChildItem -Path $RegistryPath | ForEach-Object { 
-    Set-ItemProperty -Path $_.PSPath -Name StateFlags001 -Value 2 
-}
-
-        Start-Process -FilePath cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
-
-        # 6. Verificação de integridade
-        Write-Host "├─ Verificando saúde do sistema..." -ForegroundColor Cyan
+        # 6. Verificação de saúde do sistema
+        Write-Host "│  Verificando saúde do sistema..." -ForegroundColor DarkGray
         try {
             DISM /Online /Cleanup-Image /RestoreHealth | Out-Null
             sfc /scannow | Out-Null
@@ -317,9 +296,7 @@ Get-ChildItem -Path $RegistryPath | ForEach-Object {
         }
 
         Write-Host "`n[✅] Limpeza concluída com sucesso!" -ForegroundColor Green
-        if ((Read-Host "`nDeseja reiniciar o computador agora? (S/N)") -eq 'S') {
-            shutdown /r /f /t 15
-        }
+        Write-Host "[⚠] Recomendado reiniciar o computador" -ForegroundColor Yellow
     }
     catch {
         Write-Host "[❗] Erro durante a limpeza: $($_.Exception.Message)" -ForegroundColor Red
@@ -353,17 +330,16 @@ Testar-Admin
 while ($true) {
     try {
         Show-Menu
-        switch (Read-Host "`nSelecione uma opção [1-10]") {
-            '1'  { Listar-ProgramasInstalados }
-            '2'  { Alterar-NomeComputador }
-            '3'  { Aplicar-GPOsFCT }
-            '4'  { Restaurar-PoliticasPadrao }
-            '5'  { Atualizar-PoliticasGrupo }
-            '6'  { Reiniciar-LojaWindows }
-            '7'  { Habilitar-Smb }
-            '8'  { Limpeza-Labs }
-            '9'  { Reiniciar-Computador }
-            '10' { exit }
+        switch (Read-Host "`nSelecione uma opção [1-9]") {
+            '1' { Listar-ProgramasInstalados }
+            '2' { Alterar-NomeComputador }
+            '3' { Aplicar-GPOsFCT }
+            '4' { Restaurar-PoliticasPadrao }
+            '5' { Atualizar-PoliticasGrupo }
+            '6' { Reiniciar-LojaWindows }
+            '7' { Limpeza-Labs }
+            '8' { Reiniciar-Computador }
+            '9' { exit }
             default {
                 Write-Host "[❌] Opção inválida!" -ForegroundColor Red
                 Start-Sleep -Seconds 1
