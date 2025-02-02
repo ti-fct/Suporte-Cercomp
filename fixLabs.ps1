@@ -310,7 +310,7 @@ function Limpeza-Labs {
                     Write-Host "$browserName resetado com sucesso." -ForegroundColor Green
                 }
                 catch {
-                    Write-Host "Erro ao resetar $browserName: $_" -ForegroundColor Red
+                    Write-Host "Erro ao resetar ${browserName}: $_" -ForegroundColor Red
                 }
             }
             else {
