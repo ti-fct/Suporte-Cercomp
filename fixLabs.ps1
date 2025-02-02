@@ -353,10 +353,10 @@ function AvisoDesk {
         $scriptUrl = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.ps1"
         $installPath = "$env:ProgramData\UFG\Scripts\avisoLabs.ps1"
         
-        # Configuração correta da tarefa
+        # Configuração da tarefa
         $action = New-ScheduledTaskAction `
-            -Execute "powershell.exe" `
-            -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
+            -Execute "wscript.exe" `
+            -Argument "//B `"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe`" -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
 
         $trigger = New-ScheduledTaskTrigger -AtLogOn
         $principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -LogonType ServiceAccount -RunLevel Highest
@@ -397,7 +397,7 @@ function AvisoDesk {
                 throw "Falha no download: $($_.Exception.Message)"
             }
 
-            # Registrar tarefa corretamente
+            # Registrar tarefa
             $taskParams = @{
                 TaskName    = $taskName
                 Trigger     = $trigger
