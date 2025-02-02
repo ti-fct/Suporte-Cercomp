@@ -294,7 +294,7 @@ function Limpeza-Labs {
                     "$userDir\AppData\Local\Google\Chrome\User Data",
                     "$userDir\AppData\Local\Microsoft\Edge\User Data",
                     "$userDir\AppData\Roaming\Mozilla\Firefox\Profiles",
-					"$userDir\AppData\Roaming\Mozilla\Firefox\Profiles\profiles.ini"
+					"$userDir\AppData\Roaming\Mozilla\Firefox\profiles.ini"
                 )
                 
                 $paths | ForEach-Object {
@@ -304,7 +304,7 @@ function Limpeza-Labs {
                 }
             }
 
-        # 5. Limpeza Clean Manager (Corrigido)
+        # 5. Limpeza Clean Manager e Lixeira
         Write-Host "├─ Preparando limpeza de arquivos do sistema..." -ForegroundColor Yellow
         $RegistryPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VolumeCaches"
         if (Test-Path $RegistryPath) {
@@ -315,6 +315,16 @@ function Limpeza-Labs {
 
         # Executa limpeza automatizada
         Start-Process cleanmgr -ArgumentList "/sagerun:1" -Wait -WindowStyle Hidden
+
+        # Esvaziar a Lixeira
+        Write-Host "├─ Esvaziando a Lixeira..." -ForegroundColor Yellow
+        $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
+        foreach ($drive in $drives) {
+            $recyclePath = Join-Path -Path $drive -ChildPath '$Recycle.Bin'
+            if (Test-Path $recyclePath) {
+                Get-ChildItem -Path $recyclePath -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
 
         # 6. Verificação de saúde do sistema
         Write-Host "│  Verificando saúde do sistema..." -ForegroundColor DarkGray
