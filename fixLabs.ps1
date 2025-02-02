@@ -293,7 +293,8 @@ function Limpeza-Labs {
                 $paths = @(
                     "$userDir\AppData\Local\Google\Chrome\User Data",
                     "$userDir\AppData\Local\Microsoft\Edge\User Data",
-                    "$userDir\AppData\Roaming\Mozilla\Firefox\Profiles"
+                    "$userDir\AppData\Roaming\Mozilla\Firefox\Profiles",
+					"$userDir\AppData\Roaming\Mozilla\Firefox\Profiles\profiles.ini"
                 )
                 
                 $paths | ForEach-Object {
