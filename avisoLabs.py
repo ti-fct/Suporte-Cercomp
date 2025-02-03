@@ -42,18 +42,13 @@ class InfoWidget(QtWidgets.QWidget):
     def formatText(self):
         # Obtém informações do sistema: nome do computador e IP local
         hostname = socket.gethostname()
-        try:
-            ip = socket.gethostbyname(hostname)
-        except Exception:
-            ip = "N/A"
 
         # Formata o texto com emojis e separadores; ajuste os ícones conforme o contexto de cada mensagem
         texto = (
             "<p style='margin:0; text-align:right; color:white;'>"
             "<b>LABORATÓRIO DE INFORMÁTICA - FCT/UFG</b><br>"
             "───────────────────────────────<br>"
-            "<b>💻 Nome do computador:</b> " + hostname + "<br>"
-            "<b>🌐 IP:</b> " + ip + "<br><br>"
+            "<b>💻</b> " + hostname + "<br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
             "⚙️ Não alterar configurações do sistema<br>"
@@ -64,6 +59,7 @@ class InfoWidget(QtWidgets.QWidget):
             "💾 Remova dispositivos externos<br><br>"
             "<b>🛠️ SUPORTE TÉCNICO</b><br>"
             "🌐chamado.ufg.br"
+            "💬(62)3209-6555"
             "</p>"
         )
         return texto   
