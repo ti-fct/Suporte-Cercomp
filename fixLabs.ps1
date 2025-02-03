@@ -349,72 +349,84 @@ function Limpeza-Labs {
 
 function AvisoDesk {
     try {
-        $taskName = "UFG Aviso Laboratório"
-        $scriptUrl = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.ps1"
-        $installPath = "$env:ProgramData\UFG\Scripts\avisoLabs.ps1"
-        
-        # Configuração da tarefa
-        $action = New-ScheduledTaskAction `
-            -Execute "wscript.exe" `
-            -Argument "//B `"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe`" -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installPath`""
+        Write-Host "`n[🚨] Configurando aviso no desktop..." -ForegroundColor Red
 
-        $trigger = New-ScheduledTaskTrigger -AtLogOn
-        $principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+        # Diretório para salvar o script
+        $installDir = "C:\UFG"
+        $scriptPath = Join-Path $installDir "avisoLabs.py"
 
-        $settings = New-ScheduledTaskSettingsSet `
-            -AllowStartIfOnBatteries `
-            -DontStopIfGoingOnBatteries `
-            -StartWhenAvailable
-
-        # Verificação de instalação
-        $taskExists = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-
-        if ($taskExists) {
-            Write-Host "`n[⚠] Sistema de avisos já está instalado!" -ForegroundColor Yellow
-            $choice = Read-Host "Deseja remover? (S/N)"
-            
-            if ($choice -eq 'S') {
-                Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
-                Remove-Item $installPath -Force -ErrorAction SilentlyContinue
-                Write-Host "[✅] Aviso desinstalado com sucesso!" -ForegroundColor Green
-            }
+        # Criar diretório se não existir
+        if (-not (Test-Path $installDir)) {
+            New-Item -ItemType Directory -Path $installDir -Force | Out-Null
         }
-        else {
-            Write-Host "`n[🚨] Instalando sistema de avisos..." -ForegroundColor Cyan
-            
-            # Criar estrutura de diretórios
-            $scriptDir = Split-Path $installPath
-            if (-not (Test-Path $scriptDir)) {
-                New-Item -Path $scriptDir -ItemType Directory -Force | Out-Null
-            }
 
-            # Baixar script
+        # Baixar script do GitHub
+        Write-Host "├─ Baixando script do GitHub..." -ForegroundColor Cyan
+        try {
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py" `
+                -OutFile $scriptPath -ErrorAction Stop
+        }
+        catch {
+            throw "Falha ao baixar o script: $($_.Exception.Message)"
+        }
+
+        # Verificar/Instalar Python
+        $python = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $python) {
+            Write-Host "├─ Python não encontrado. Instalando..." -ForegroundColor Yellow
+            
+            # URL do instalador do Python (versão recomendada)
+            $pythonURL = "https://www.python.org/ftp/python/3.13.1/python-3.13.1-amd64.exe"
+            $installerPath = "$env:TEMP\python_installer.exe"
+
             try {
-                Invoke-WebRequest $scriptUrl -OutFile $installPath -UseBasicParsing
-                Unblock-File -Path $installPath -ErrorAction SilentlyContinue
+                # Baixar instalador
+                Invoke-WebRequest -Uri $pythonURL -OutFile $installerPath -ErrorAction Stop
+                
+                # Instalar silenciosamente
+                Write-Host "├─ Executando instalação silenciosa..." -ForegroundColor DarkGray
+                $installArgs = "/quiet InstallAllUsers=1 PrependPath=1"
+                Start-Process -FilePath $installerPath -ArgumentList $installArgs -Wait -NoNewWindow
             }
             catch {
-                throw "Falha no download: $($_.Exception.Message)"
+                throw "Erro na instalação do Python: $($_.Exception.Message)"
+            }
+            finally {
+                if (Test-Path $installerPath) { Remove-Item $installerPath -Force }
             }
 
-            # Registrar tarefa
-            $taskParams = @{
-                TaskName    = $taskName
-                Trigger     = $trigger
-                Action      = $action
-                Principal   = $principal
-                Settings    = $settings
-                Description = "Exibe aviso institucional no login"
-            }
-
-            Register-ScheduledTask @taskParams -Force | Out-Null
-
-            Write-Host "[✅] Sistema instalado com sucesso!" -ForegroundColor Green
-            Write-Host "[ℹ] A mensagem aparecerá em todos os logins de usuário" -ForegroundColor Cyan
+            # Atualizar PATH
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + 
+                        [System.Environment]::GetEnvironmentVariable("Path","User")
         }
+
+        # Verificar/Instalar PyQt5
+        Write-Host "├─ Verificando PyQt5..." -ForegroundColor Cyan
+        $pyqtCheck = & python -c "import PyQt5" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "├─ Instalando PyQt5..." -ForegroundColor Yellow
+            & python -m pip install PyQt5 --quiet
+            if ($LASTEXITCODE -ne 0) {
+                throw "Falha ao instalar PyQt5"
+            }
+        }
+
+        # Criar atalho na pasta de inicialização
+        $shortcutPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\AvisoLabs.lnk"
+        $pythonwPath = (Get-Command pythonw.exe).Source
+
+        Write-Host "├─ Criando atalho de inicialização..." -ForegroundColor Cyan
+        $WshShell = New-Object -ComObject WScript.Shell
+        $shortcut = $WshShell.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = $pythonwPath
+        $shortcut.Arguments = "`"$scriptPath`""
+        $shortcut.WorkingDirectory = $installDir
+        $shortcut.Save()
+
+        Write-Host "[✅] Aviso configurado para iniciar automaticamente!" -ForegroundColor Green
     }
     catch {
-        Write-Host "[❗] Erro crítico: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "[❗] Falha na configuração: $($_.Exception.Message)" -ForegroundColor Red
     }
     finally {
         Invoke-PressKey
