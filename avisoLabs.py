@@ -46,19 +46,19 @@ class InfoWidget(QtWidgets.QWidget):
         # Formata o texto com emojis e separadores; ajuste os ícones conforme o contexto de cada mensagem
         texto = (
             "<p style='margin:0; text-align:right; color:white;'>"
-            "<b>LABORATÓRIO DE INFORMÁTICA - FCT/UFG</b><br>"
+            "<b>💻 LAB. DE INFORMÁTICA - FCT/UFG</b><br>"
             "───────────────────────────────<br>"
-            "<b>💻</b> " + hostname + "<br>"
+            ""+ hostname +"<br><br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
             "⚙️ Não alterar configurações do sistema<br>"
             "🚫 Não consumir alimentos no laboratório<br><br>"
             "<b>🚪 PROCEDIMENTOS AO SAIR</b><br>"
             "❌ Encerre todos os aplicativos<br>"
-            "🔒 Faça logout das contas<br>"
             "💾 Remova dispositivos externos<br><br>"
+            "🔒 Faça logout das contas<br>"
             "<b>🛠️ SUPORTE TÉCNICO</b><br>"
-            "🌐chamado.ufg.br"
+            "🌐chamado.ufg.br<br>"
             "💬(62)3209-6555"
             "</p>"
         )
