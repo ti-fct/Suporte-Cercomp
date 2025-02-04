@@ -4,6 +4,21 @@ import os
 import subprocess
 import importlib.util
 import socket
+import logging
+
+# Configuração do logging para salvar em C:\UFG\script.log
+log_dir = r"C:\UFG"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+log_file = os.path.join(log_dir, "script.log")
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(log_file, encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
 
 def verificar_e_instalar(nome_pacote, nome_modulo=None):
     """
@@ -18,15 +33,15 @@ def verificar_e_instalar(nome_pacote, nome_modulo=None):
 
     especificacao = importlib.util.find_spec(nome_modulo)
     if especificacao is None:
-        print(f"Módulo '{nome_modulo}' não encontrado. Instalando '{nome_pacote}'...")
+        logging.info(f"Módulo '{nome_modulo}' não encontrado. Instalando '{nome_pacote}'...")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", nome_pacote])
-            print(f"'{nome_pacote}' instalado com sucesso.")
+            logging.info(f"'{nome_pacote}' instalado com sucesso.")
         except subprocess.CalledProcessError as erro:
-            print(f"Erro ao instalar '{nome_pacote}': {erro}")
+            logging.error(f"Erro ao instalar '{nome_pacote}': {erro}")
             sys.exit(1)  # Encerra o script se a instalação falhar.
     else:
-        print(f"Módulo '{nome_modulo}' já está instalado.")
+        logging.info(f"Módulo '{nome_modulo}' já está instalado.")
 
 # -----------------------------
 # 1. Verificação das dependências necessárias
@@ -37,7 +52,6 @@ verificar_e_instalar("PyQt5")
 # Agora que as dependências estão garantidas, importamos os módulos.
 import requests
 from PyQt5 import QtWidgets, QtCore, QtGui
-import socket
 
 # -----------------------------
 # 2. Função de Auto-Update
@@ -53,7 +67,7 @@ def atualizar_script():
         resposta = requests.get(url)
         resposta.raise_for_status()  # Levanta exceção se o download falhar.
     except requests.RequestException as e:
-        print(f"Erro ao acessar a URL para atualização: {e}")
+        logging.error(f"Erro ao acessar a URL para atualização: {e}")
         return  # Em caso de erro, continua executando o script atual.
 
     conteudo_remoto = resposta.text
@@ -64,22 +78,22 @@ def atualizar_script():
         with open(caminho_script, "r", encoding="utf-8") as arquivo:
             conteudo_atual = arquivo.read()
     except Exception as e:
-        print(f"Erro ao ler o script atual: {e}")
+        logging.error(f"Erro ao ler o script atual: {e}")
         return
 
     # Compara os conteúdos.
     if conteudo_atual != conteudo_remoto:
-        print("Nova versão encontrada. Atualizando o script...")
+        logging.info("Nova versão encontrada. Atualizando o script...")
         try:
             with open(caminho_script, "w", encoding="utf-8") as arquivo:
                 arquivo.write(conteudo_remoto)
-            print("Script atualizado com sucesso. Por favor, reinicie o programa.")
+            logging.info("Script atualizado com sucesso. Por favor, reinicie o programa.")
 #            sys.exit(0)
         except Exception as e:
-            print(f"Erro ao atualizar o script: {e}")
+            logging.error(f"Erro ao atualizar o script: {e}")
  #           sys.exit(1)
     else:
-        print("O script já está atualizado.")
+        logging.info("O script já está atualizado.")
 
 # Executa o autoupdate somente após a verificação das dependências.
 atualizar_script()
@@ -124,9 +138,9 @@ class WidgetInfo(QtWidgets.QWidget):
         self.posicionar_widget()
 
     def formatar_texto(self):
-        # Obtém informações do sistema: nome do computador.
+        # Obtém informações do sistema: nome do computador e IP local.
         nome_computador = socket.gethostname()
-        ip_local = print(socket.gethostbyname(socket.gethostname()))
+        ip_local = socket.gethostbyname(socket.gethostname())
         # Formata o texto com emojis e separadores.
         texto = (
             "<p style='margin:0; text-align:right; color:white;'>"
@@ -169,6 +183,7 @@ class WidgetInfo(QtWidgets.QWidget):
         super().changeEvent(evento)
 
 def principal():
+    logging.info("Iniciando aplicação...")
     app = QtWidgets.QApplication(sys.argv)
     widget = WidgetInfo()
     widget.show()
