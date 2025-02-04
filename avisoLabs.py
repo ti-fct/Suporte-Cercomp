@@ -65,15 +65,14 @@ def atualizar_script():
     
     try:
         resposta = requests.get(url)
-        resposta.raise_for_status()  # Levanta exceção se o download falhar.
+        resposta.raise_for_status()
     except requests.RequestException as e:
         logging.error(f"Erro ao acessar a URL para atualização: {e}")
-        return  # Em caso de erro, continua executando o script atual.
+        return
 
     conteudo_remoto = resposta.text
     caminho_script = os.path.realpath(__file__)
 
-    # Lê o conteúdo do script atual.
     try:
         with open(caminho_script, "r", encoding="utf-8") as arquivo:
             conteudo_atual = arquivo.read()
@@ -81,10 +80,29 @@ def atualizar_script():
         logging.error(f"Erro ao ler o script atual: {e}")
         return
 
-    # Compara os conteúdos.
-    if conteudo_atual != conteudo_remoto:
+    # Normalização para comparação
+    def normalizar_conteudo(conteudo):
+        # Remove BOM se presente
+        if conteudo.startswith('\ufeff'):
+            conteudo = conteudo[1:]
+        # Normaliza quebras de linha para LF
+        conteudo = conteudo.replace('\r\n', '\n').replace('\r', '\n')
+        return conteudo.strip()  # Remove espaços em branco no final
+
+    conteudo_atual_normalizado = normalizar_conteudo(conteudo_atual)
+    conteudo_remoto_normalizado = normalizar_conteudo(conteudo_remoto)
+
+    # Logs para depuração (opcional)
+    import hashlib
+    hash_atual = hashlib.md5(conteudo_atual_normalizado.encode('utf-8')).hexdigest()
+    hash_remoto = hashlib.md5(conteudo_remoto_normalizado.encode('utf-8')).hexdigest()
+    logging.debug(f"Hash atual: {hash_atual}")
+    logging.debug(f"Hash remoto: {hash_remoto}")
+
+    if conteudo_atual_normalizado != conteudo_remoto_normalizado:
         logging.info("Nova versão encontrada. Atualizando o script...")
         try:
+            # Escreve o conteúdo remoto original (sem normalização)
             with open(caminho_script, "w", encoding="utf-8") as arquivo:
                 arquivo.write(conteudo_remoto)
             logging.info("Script atualizado com sucesso. Por favor, reinicie o programa.")
@@ -94,7 +112,7 @@ def atualizar_script():
             sys.exit(1)
     else:
         logging.info("O script já está atualizado.")
-
+        
 # Executa o autoupdate somente após a verificação das dependências.
 atualizar_script()
 
