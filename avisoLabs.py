@@ -88,10 +88,10 @@ def atualizar_script():
             with open(caminho_script, "w", encoding="utf-8") as arquivo:
                 arquivo.write(conteudo_remoto)
             logging.info("Script atualizado com sucesso. Por favor, reinicie o programa.")
-#            sys.exit(0)
+            sys.exit(0)
         except Exception as e:
             logging.error(f"Erro ao atualizar o script: {e}")
- #           sys.exit(1)
+            sys.exit(1)
     else:
         logging.info("O script já está atualizado.")
 
@@ -146,7 +146,7 @@ class WidgetInfo(QtWidgets.QWidget):
             "<p style='margin:0; text-align:right; color:white;'>"
             "<b>💻 LAB. DE INFORMÁTICA - FCT/UFG</b><br>"
             "───────────────────────────<br>"
-            f"{nome_computador}<br>"
+            f"{nome_computador}<br><br>"
 #            f"{ip_local}<br><br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
