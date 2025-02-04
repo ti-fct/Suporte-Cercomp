@@ -1,54 +1,136 @@
+#!/usr/bin/env python
 import sys
-import socket
-from PyQt5 import QtWidgets, QtCore, QtGui
+import os
+import subprocess
+import importlib.util
 
-class InfoWidget(QtWidgets.QWidget):
+def verificar_e_instalar(nome_pacote, nome_modulo=None):
+    """
+    Verifica se o módulo está instalado e, se não estiver,
+    instala-o utilizando o pip.
+    
+    :param nome_pacote: Nome do pacote a ser instalado via pip.
+    :param nome_modulo: Nome do módulo a ser verificado; se None, usa nome_pacote.
+    """
+    if nome_modulo is None:
+        nome_modulo = nome_pacote
+
+    especificacao = importlib.util.find_spec(nome_modulo)
+    if especificacao is None:
+        print(f"Módulo '{nome_modulo}' não encontrado. Instalando '{nome_pacote}'...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", nome_pacote])
+            print(f"'{nome_pacote}' instalado com sucesso.")
+        except subprocess.CalledProcessError as erro:
+            print(f"Erro ao instalar '{nome_pacote}': {erro}")
+            sys.exit(1)  # Encerra o script se a instalação falhar.
+    else:
+        print(f"Módulo '{nome_modulo}' já está instalado.")
+
+# -----------------------------
+# 1. Verificação das dependências necessárias
+# -----------------------------
+verificar_e_instalar("requests")
+verificar_e_instalar("PyQt5")
+
+# Agora que as dependências estão garantidas, importamos os módulos.
+import requests
+from PyQt5 import QtWidgets, QtCore, QtGui
+import socket
+
+# -----------------------------
+# 2. Função de Auto-Update
+# -----------------------------
+def atualizar_script():
+    """
+    Compara o conteúdo do script atual com a versão remota.
+    Se forem diferentes, baixa a nova versão e substitui o arquivo atual.
+    """
+    url = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py"
+    
+    try:
+        resposta = requests.get(url)
+        resposta.raise_for_status()  # Levanta exceção se o download falhar.
+    except requests.RequestException as e:
+        print(f"Erro ao acessar a URL para atualização: {e}")
+        return  # Em caso de erro, continua executando o script atual.
+
+    conteudo_remoto = resposta.text
+    caminho_script = os.path.realpath(__file__)
+
+    # Lê o conteúdo do script atual.
+    try:
+        with open(caminho_script, "r", encoding="utf-8") as arquivo:
+            conteudo_atual = arquivo.read()
+    except Exception as e:
+        print(f"Erro ao ler o script atual: {e}")
+        return
+
+    # Compara os conteúdos.
+    if conteudo_atual != conteudo_remoto:
+        print("Nova versão encontrada. Atualizando o script...")
+        try:
+            with open(caminho_script, "w", encoding="utf-8") as arquivo:
+                arquivo.write(conteudo_remoto)
+            print("Script atualizado com sucesso. Por favor, reinicie o programa.")
+#            sys.exit(0)
+        except Exception as e:
+            print(f"Erro ao atualizar o script: {e}")
+ #           sys.exit(1)
+    else:
+        print("O script já está atualizado.")
+
+# Executa o autoupdate somente após a verificação das dependências.
+atualizar_script()
+
+# -----------------------------
+# 3. Código Principal (Interface gráfica com PyQt5)
+# -----------------------------
+class WidgetInfo(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        self.setupUI()
+        self.configurar_interface()
 
-    def setupUI(self):
-        # Define a janela sem bordas, transparente e que fique abaixo de outras janelas
+    def configurar_interface(self):
+        # Define a janela sem bordas, transparente e que fique abaixo de outras janelas.
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint |
                             QtCore.Qt.WindowStaysOnBottomHint |
                             QtCore.Qt.Tool)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
-        # Cria o label com o texto (texto alinhado à direita)
-        self.label = QtWidgets.QLabel(self)
-        self.label.setText(self.formatText())
-        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
-        self.label.setStyleSheet("QLabel { color: white; font-size: 11pt; }")
+        # Cria o rótulo com o texto (alinhado à direita).
+        self.rotulo = QtWidgets.QLabel(self)
+        self.rotulo.setText(self.formatar_texto())
+        self.rotulo.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+        self.rotulo.setStyleSheet("QLabel { color: white; font-size: 11pt; }")
 
-        # Adiciona um efeito de sombra preta no texto
-        shadow = QtWidgets.QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(5)
-        shadow.setOffset(2, 2)
-        shadow.setColor(QtGui.QColor(0, 0, 0))
-        self.label.setGraphicsEffect(shadow)
+        # Adiciona um efeito de sombra preta no texto.
+        sombra = QtWidgets.QGraphicsDropShadowEffect(self)
+        sombra.setBlurRadius(5)
+        sombra.setOffset(2, 2)
+        sombra.setColor(QtGui.QColor(0, 0, 0))
+        self.rotulo.setGraphicsEffect(sombra)
 
-        # Layout para posicionar o label com margens
+        # Layout para posicionar o rótulo com margens.
         layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self.label)
+        layout.addWidget(self.rotulo)
         layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(layout)
 
-        # Ajusta o tamanho da janela de acordo com o conteúdo
+        # Ajusta o tamanho da janela de acordo com o conteúdo.
         self.adjustSize()
+        # Posiciona a janela no canto superior direito com uma margem.
+        self.posicionar_widget()
 
-        # Posiciona a janela no canto superior direito com uma margem
-        self.positionWidget()
-
-    def formatText(self):
-        # Obtém informações do sistema: nome do computador e IP local
-        hostname = socket.gethostname()
-
-        # Formata o texto com emojis e separadores; ajuste os ícones conforme o contexto de cada mensagem
+    def formatar_texto(self):
+        # Obtém informações do sistema: nome do computador.
+        nome_computador = socket.gethostname()
+        # Formata o texto com emojis e separadores.
         texto = (
             "<p style='margin:0; text-align:right; color:white;'>"
             "<b>💻 LAB. DE INFORMÁTICA - FCT/UFG</b><br>"
             "───────────────────────────<br>"
-            ""+ hostname +"<br><br>"
+            f"{nome_computador}<br><br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
             "🚫 Não consumir alimentos no laboratório<br>"
@@ -58,36 +140,36 @@ class InfoWidget(QtWidgets.QWidget):
             "❌ Encerre todos os aplicativos<br>"
             "🔒 Faça logout das contas<br><br>"
             "<b>🛠️ SUPORTE TÉCNICO</b><br>"
-            "🌐chamado.ufg.br<br>"
-            "💬(62)3209-6555"
+            "🌐 chamado.ufg.br<br>"
+            "💬 (62)3209-6555"
             "</p>"
         )
         return texto   
 
-    def positionWidget(self):
-        # Recupera a geometria da área de trabalho principal
-        screen = QtWidgets.QApplication.primaryScreen()
-        available_rect = screen.availableGeometry()
-        widget_width = self.width()
-        widget_height = self.height()
-        margin = 20  # margem em pixels
-        # Posiciona no canto superior direito
-        x = available_rect.right() - widget_width - margin
-        y = available_rect.top() + margin
+    def posicionar_widget(self):
+        # Recupera a geometria da área de trabalho principal.
+        tela = QtWidgets.QApplication.primaryScreen()
+        retangulo_disponivel = tela.availableGeometry()
+        largura_widget = self.width()
+        altura_widget = self.height()
+        margem = 20  # margem em pixels
+        # Posiciona no canto superior direito.
+        x = retangulo_disponivel.right() - largura_widget - margem
+        y = retangulo_disponivel.top() + margem
         self.move(x, y)
 
-    def changeEvent(self, event):
-        # Impede que a janela seja minimizada: se ocorrer minimização, restaura imediatamente
-        if event.type() == QtCore.QEvent.WindowStateChange:
+    def changeEvent(self, evento):
+        # Impede que a janela seja minimizada: se ocorrer minimização, restaura imediatamente.
+        if evento.type() == QtCore.QEvent.WindowStateChange:
             if self.windowState() & QtCore.Qt.WindowMinimized:
                 QtCore.QTimer.singleShot(0, self.showNormal)
-        super().changeEvent(event)
+        super().changeEvent(evento)
 
-def main():
+def principal():
     app = QtWidgets.QApplication(sys.argv)
-    widget = InfoWidget()
+    widget = WidgetInfo()
     widget.show()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    main()
+    principal()
