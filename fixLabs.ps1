@@ -373,22 +373,24 @@ function AvisoDesk {
         # Verificar/Instalar Python
         $python = Get-Command python -ErrorAction SilentlyContinue
         if (-not $python) {
-            Write-Host "├─ Python não encontrado. Instalando..." -ForegroundColor Yellow
+            Write-Host "├─ Python não encontrado. Instalando via winget..." -ForegroundColor Yellow
             
-            $pythonURL = "https://www.python.org/ftp/python/3.13.1/python-3.13.1-amd64.exe"
-            $installerPath = "$env:TEMP\python_installer.exe"
-
             try {
-                Invoke-WebRequest -Uri $pythonURL -OutFile $installerPath -ErrorAction Stop
                 Write-Host "├─ Executando instalação silenciosa..." -ForegroundColor DarkGray
-                $installArgs = "/quiet InstallAllUsers=1 PrependPath=1"
-                Start-Process -FilePath $installerPath -ArgumentList $installArgs -Wait -NoNewWindow
+                $proc = Start-Process -FilePath winget -ArgumentList @(
+                    "install",
+                    "--id Python.Python.3",
+                    "--silent",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements"
+                ) -Wait -PassThru -NoNewWindow
+
+                if ($proc.ExitCode -ne 0) {
+                    throw "Erro na instalação do Python via winget. Código de saída: $($proc.ExitCode)"
+                }
             }
             catch {
                 throw "Erro na instalação do Python: $($_.Exception.Message)"
-            }
-            finally {
-                if (Test-Path $installerPath) { Remove-Item $installerPath -Force }
             }
 
             # Atualizar PATH após instalação
@@ -433,7 +435,6 @@ function AvisoDesk {
         $WshShell = New-Object -ComObject WScript.Shell
         $shortcut = $WshShell.CreateShortcut($shortcutPath)
         $shortcut.TargetPath = $venvPythonw
-        # As aspas duplas garantem que o caminho do script seja interpretado corretamente mesmo com espaços
         $shortcut.Arguments = '"' + $scriptPath + '"'
         $shortcut.WorkingDirectory = $installDir
         $shortcut.Save()
