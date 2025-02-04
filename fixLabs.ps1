@@ -349,7 +349,7 @@ function Limpeza-Labs {
 
 function AvisoDesk {
     try {
-        Write-Host "n[🚨] Configurando aviso no desktop..." -ForegroundColor Red
+        Write-Host "`n[🚨] Configurando aviso no desktop..." -ForegroundColor Red
 
         # Diretório para salvar o script e ambiente virtual
         $installDir = "C:\UFG"
@@ -410,6 +410,16 @@ function AvisoDesk {
                 throw "Erro ao criar o ambiente virtual: $($_.Exception.Message)"
             }
         }
+		
+        # Executa uma vez o ambiente virtual com o avisoLabs.py para instalar as dependências
+        $venvPython = Join-Path $venvPath "Scripts\python.exe"
+        Write-Host "├─ Executando avisoLabs.py para instalar dependências..." -ForegroundColor Cyan
+        try {
+            & $venvPython $scriptPath
+        }
+        catch {
+            throw "Erro ao executar avisoLabs.py: $($_.Exception.Message)"
+        }
 
         # Criar atalho na inicialização usando o ambiente virtual
         $shortcutPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\AvisoLabs.lnk"
@@ -423,7 +433,8 @@ function AvisoDesk {
         $WshShell = New-Object -ComObject WScript.Shell
         $shortcut = $WshShell.CreateShortcut($shortcutPath)
         $shortcut.TargetPath = $venvPythonw
-        $shortcut.Arguments = "`"$scriptPath`""
+        # As aspas duplas garantem que o caminho do script seja interpretado corretamente mesmo com espaços
+        $shortcut.Arguments = '"' + $scriptPath + '"'
         $shortcut.WorkingDirectory = $installDir
         $shortcut.Save()
 
