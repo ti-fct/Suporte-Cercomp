@@ -394,7 +394,7 @@ function AvisoDesk {
         if (-not $pythonInstalled) {
             Write-Host "├─ Python 3 não encontrado. Instalando via winget..." -ForegroundColor Yellow
             try {
-                winget install --id Python.Python.3 --exact --accept-package-agreements --accept-source-agreements
+                winget install --id Python.Python.3.13 --exact --accept-package-agreements --accept-source-agreements
                 if ($LASTEXITCODE -ne 0) {
                     throw "Falha ao instalar Python 3. Código de saída: $LASTEXITCODE"
                 }
