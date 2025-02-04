@@ -170,7 +170,7 @@ function Restaurar-PoliticasPadrao {
         }
 
         Write-Host "[✅] Restauração concluída!" -ForegroundColor Green
-        gpupdate /force | Out-Null
+#        gpupdate /force | Out-Null
     }
     catch {
         Write-Host "[❗] Erro na restauração: $($_.Exception.Message)" -ForegroundColor Red
