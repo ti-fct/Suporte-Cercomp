@@ -147,7 +147,7 @@ class WidgetInfo(QtWidgets.QWidget):
             "<b>💻 LAB. DE INFORMÁTICA - FCT/UFG</b><br>"
             "───────────────────────────<br>"
             f"{nome_computador}<br>"
-            f"{ip_local}<br><br>"
+#            f"{ip_local}<br><br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
             "🚫 Não consumir alimentos no laboratório<br>"
