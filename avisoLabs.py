@@ -158,7 +158,7 @@ class WidgetInfo(QtWidgets.QWidget):
             "🔒 Faça logout das contas<br><br>"
             "<b>🛠️ SUPORTE TÉCNICO</b><br>"
             "🌐 chamado.ufg.br<br>"
-            "💬 (62)3209-6555"
+            "💬 (62) 3209-6555"
             "</p>"
         )
         return texto   
@@ -183,7 +183,7 @@ class WidgetInfo(QtWidgets.QWidget):
         super().changeEvent(evento)
 
 def principal():
-    logging.info("Iniciando aplicação...")
+    logging.info("Iniciando aplicação...                Feche a janela para sair!")
     app = QtWidgets.QApplication(sys.argv)
     widget = WidgetInfo()
     widget.show()
