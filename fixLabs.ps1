@@ -355,10 +355,36 @@ function AvisoDesk {
         $installDir = "C:\UFG"
         $scriptPath = Join-Path $installDir "avisoLabs.py"
         $venvPath = Join-Path $installDir ".venv"
-
+      
         # Criar diretório se não existir
         if (-not (Test-Path $installDir)) {
             New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+        }
+
+        # Verifica se o Python está instalado
+        $pythonExe = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $pythonExe) {
+            Write-Host "├─ Python 3 não encontrado. Instalando via winget..." -ForegroundColor Yellow
+            try {
+                winget install --id Python.Python.3.13 --exact --accept-package-agreements --accept-source-agreements
+                # Aguardar alguns segundos para a instalação ser concluída
+                Start-Sleep -Seconds 10
+                
+                # Revalida a instalação do Python
+                $pythonExe = Get-Command python -ErrorAction Stop
+                $version = & $pythonExe.Source --version 2>&1
+                if ($version -match 'Python 3\.') {
+                    Write-Host "├─ Python 3 instalado com sucesso: $version" -ForegroundColor Green
+                } else {
+                    throw "Versão incorreta do Python detectada: $version"
+                }
+            } catch {
+                throw "Erro durante a instalação do Python: $($_.Exception.Message)"
+            }
+        }
+        else {
+            $version = & $pythonExe.Source --version 2>&1
+            Write-Host "├─ Python já está instalado: $version" -ForegroundColor Green
         }
 
         # Baixar script do GitHub
@@ -370,57 +396,12 @@ function AvisoDesk {
             throw "Falha ao baixar o script: $($_.Exception.Message)"
         }
 
-        # Verifica se o Python3 está instalado caso não instalar ele via winget
-        Write-Host "├─ Verificando se o Python 3 está instalado..." -ForegroundColor Cyan
-        $pythonInstalled = $false
-        $pythonCommands = @('python3', 'python')
-        
-        # Verifica se o Python 3 está disponível no sistema
-        foreach ($cmd in $pythonCommands) {
-            try {
-                $pythonExe = Get-Command $cmd -ErrorAction Stop
-                $version = & $pythonExe.Source --version 2>&1
-                if ($version -match 'Python 3\.') {
-                    $pythonInstalled = $true
-                    Write-Host "├─ Python 3 encontrado ($($pythonExe.Source)): $version" -ForegroundColor Green
-                    break
-                }
-            } catch {
-                # Comando não encontrado, continua a verificação
-            }
-        }
-
-        # Instalação via winget se necessário
-        if (-not $pythonInstalled) {
-            Write-Host "├─ Python 3 não encontrado. Instalando via winget..." -ForegroundColor Yellow
-            try {
-                winget install --id Python.Python.3.13 --exact --accept-package-agreements --accept-source-agreements
-                if ($LASTEXITCODE -ne 0) {
-                    throw "Falha ao instalar Python 3. Código de saída: $LASTEXITCODE"
-                }
-                
-                # Atualiza o PATH para incluir o Python recém-instalado
-                $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-                
-                # Verifica novamente após instalação
-                $pythonExe = Get-Command python -ErrorAction Stop
-                $version = & $pythonExe.Source --version 2>&1
-                if ($version -match 'Python 3\.') {
-                    Write-Host "├─ Python 3 instalado com sucesso: $version" -ForegroundColor Green
-                } else {
-                    throw "Versão incorreta do Python detectada: $version"
-                }
-            } catch {
-                throw "Erro durante a instalação do Python 3: $($_.Exception.Message)"
-            }
-        }
-
         # Criar ambiente virtual se não existir
         if (-not (Test-Path $venvPath)) {
             Write-Host "├─ Criando ambiente virtual em $venvPath..." -ForegroundColor Cyan
             try {
-                $pythonExe = (Get-Command python.exe).Source
-                & $pythonExe -m venv $venvPath
+                $pythonExePath = (Get-Command python.exe).Source
+                & $pythonExePath -m venv $venvPath
                 if (-not (Test-Path (Join-Path $venvPath "Scripts\pythonw.exe"))) {
                     throw "Falha ao criar o ambiente virtual."
                 }
@@ -463,7 +444,10 @@ function AvisoDesk {
         Write-Host "[❗] Falha na configuração: $($_.Exception.Message)" -ForegroundColor Red
     }
     finally {
-        Invoke-PressKey
+        # Função auxiliar para aguardar input do usuário (caso exista)
+        if (Get-Command Invoke-PressKey -ErrorAction SilentlyContinue) {
+            Invoke-PressKey
+        }
     }
 }
 
