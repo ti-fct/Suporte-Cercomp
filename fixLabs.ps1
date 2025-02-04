@@ -400,17 +400,6 @@ function AvisoDesk {
                         [System.Environment]::GetEnvironmentVariable("Path","User")
         }
 
-        # Verificar/Instalar PyQt5
-        Write-Host "├─ Verificando PyQt5..." -ForegroundColor Cyan
-        $pyqtCheck = & python -c "import PyQt5" 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "├─ Instalando PyQt5..." -ForegroundColor Yellow
-            & python -m pip install PyQt5 --quiet
-            if ($LASTEXITCODE -ne 0) {
-                throw "Falha ao instalar PyQt5"
-            }
-        }
-
         # Criar atalho na pasta de inicialização
         $shortcutPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\AvisoLabs.lnk"
         $pythonwPath = (Get-Command pythonw.exe).Source
