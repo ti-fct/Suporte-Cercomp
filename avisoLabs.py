@@ -47,7 +47,7 @@ class InfoWidget(QtWidgets.QWidget):
         texto = (
             "<p style='margin:0; text-align:right; color:white;'>"
             "<b>💻 LAB. DE INFORMÁTICA - FCT/UFG</b><br>"
-            "────────────────────────────<br>"
+            "───────────────────────────<br>"
             ""+ hostname +"<br><br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
