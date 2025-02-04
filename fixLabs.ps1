@@ -349,11 +349,12 @@ function Limpeza-Labs {
 
 function AvisoDesk {
     try {
-        Write-Host "`n[🚨] Configurando aviso no desktop..." -ForegroundColor Red
+        Write-Host "n[🚨] Configurando aviso no desktop..." -ForegroundColor Red
 
-        # Diretório para salvar o script
+        # Diretório para salvar o script e ambiente virtual
         $installDir = "C:\UFG"
         $scriptPath = Join-Path $installDir "avisoLabs.py"
+        $venvPath = Join-Path $installDir ".venv"
 
         # Criar diretório se não existir
         if (-not (Test-Path $installDir)) {
@@ -363,8 +364,7 @@ function AvisoDesk {
         # Baixar script do GitHub
         Write-Host "├─ Baixando script do GitHub..." -ForegroundColor Cyan
         try {
-            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py" `
-                -OutFile $scriptPath -ErrorAction Stop
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py" -OutFile $scriptPath -ErrorAction Stop
         }
         catch {
             throw "Falha ao baixar o script: $($_.Exception.Message)"
@@ -375,15 +375,11 @@ function AvisoDesk {
         if (-not $python) {
             Write-Host "├─ Python não encontrado. Instalando..." -ForegroundColor Yellow
             
-            # URL do instalador do Python (versão recomendada)
             $pythonURL = "https://www.python.org/ftp/python/3.13.1/python-3.13.1-amd64.exe"
             $installerPath = "$env:TEMP\python_installer.exe"
 
             try {
-                # Baixar instalador
                 Invoke-WebRequest -Uri $pythonURL -OutFile $installerPath -ErrorAction Stop
-                
-                # Instalar silenciosamente
                 Write-Host "├─ Executando instalação silenciosa..." -ForegroundColor DarkGray
                 $installArgs = "/quiet InstallAllUsers=1 PrependPath=1"
                 Start-Process -FilePath $installerPath -ArgumentList $installArgs -Wait -NoNewWindow
@@ -395,19 +391,38 @@ function AvisoDesk {
                 if (Test-Path $installerPath) { Remove-Item $installerPath -Force }
             }
 
-            # Atualizar PATH
+            # Atualizar PATH após instalação
             $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + 
                         [System.Environment]::GetEnvironmentVariable("Path","User")
         }
 
-        # Criar atalho na pasta de inicialização
+        # Criar ambiente virtual se não existir
+        if (-not (Test-Path $venvPath)) {
+            Write-Host "├─ Criando ambiente virtual em $venvPath..." -ForegroundColor Cyan
+            try {
+                $pythonExe = (Get-Command python.exe).Source
+                & $pythonExe -m venv $venvPath
+                if (-not (Test-Path (Join-Path $venvPath "Scripts\pythonw.exe"))) {
+                    throw "Falha ao criar o ambiente virtual."
+                }
+            }
+            catch {
+                throw "Erro ao criar o ambiente virtual: $($_.Exception.Message)"
+            }
+        }
+
+        # Criar atalho na inicialização usando o ambiente virtual
         $shortcutPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\AvisoLabs.lnk"
-        $pythonwPath = (Get-Command pythonw.exe).Source
+        $venvPythonw = Join-Path $venvPath "Scripts\pythonw.exe"
+
+        if (-not (Test-Path $venvPythonw)) {
+            throw "Python do ambiente virtual não encontrado em $venvPythonw."
+        }
 
         Write-Host "├─ Criando atalho de inicialização..." -ForegroundColor Cyan
         $WshShell = New-Object -ComObject WScript.Shell
         $shortcut = $WshShell.CreateShortcut($shortcutPath)
-        $shortcut.TargetPath = $pythonwPath
+        $shortcut.TargetPath = $venvPythonw
         $shortcut.Arguments = "`"$scriptPath`""
         $shortcut.WorkingDirectory = $installDir
         $shortcut.Save()
