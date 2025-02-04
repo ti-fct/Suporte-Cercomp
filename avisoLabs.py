@@ -57,10 +57,6 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 # 2. Função de Auto-Update
 # -----------------------------
 def atualizar_script():
-    """
-    Compara o conteúdo do script atual com a versão remota.
-    Se forem diferentes, baixa a nova versão e substitui o arquivo atual.
-    """
     url = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py"
     
     try:
@@ -80,39 +76,24 @@ def atualizar_script():
         logging.error(f"Erro ao ler o script atual: {e}")
         return
 
-    # Normalização para comparação
-    def normalizar_conteudo(conteudo):
-        # Remove BOM se presente
-        if conteudo.startswith('\ufeff'):
-            conteudo = conteudo[1:]
-        # Normaliza quebras de linha para LF
-        conteudo = conteudo.replace('\r\n', '\n').replace('\r', '\n')
-        return conteudo.strip()  # Remove espaços em branco no final
-
-    conteudo_atual_normalizado = normalizar_conteudo(conteudo_atual)
-    conteudo_remoto_normalizado = normalizar_conteudo(conteudo_remoto)
-
-    # Logs para depuração (opcional)
-    import hashlib
-    hash_atual = hashlib.md5(conteudo_atual_normalizado.encode('utf-8')).hexdigest()
-    hash_remoto = hashlib.md5(conteudo_remoto_normalizado.encode('utf-8')).hexdigest()
-    logging.debug(f"Hash atual: {hash_atual}")
-    logging.debug(f"Hash remoto: {hash_remoto}")
+    # Normaliza quebras de linha para LF
+    conteudo_remoto_normalizado = re.sub(r'\r\n?', '\n', conteudo_remoto)
+    conteudo_atual_normalizado = re.sub(r'\r\n?', '\n', conteudo_atual)
 
     if conteudo_atual_normalizado != conteudo_remoto_normalizado:
         logging.info("Nova versão encontrada. Atualizando o script...")
         try:
-            # Escreve o conteúdo remoto original (sem normalização)
-            with open(caminho_script, "w", encoding="utf-8") as arquivo:
+            # Escreve com newline='\n' para manter LF
+            with open(caminho_script, "w", encoding="utf-8", newline='\n') as arquivo:
                 arquivo.write(conteudo_remoto)
-            logging.info("Script atualizado com sucesso. Por favor, reinicie o programa.")
+            logging.info("Script atualizado com sucesso. Reinicie o programa.")
             sys.exit(0)
         except Exception as e:
-            logging.error(f"Erro ao atualizar o script: {e}")
+            logging.error(f"Erro ao atualizar: {e}")
             sys.exit(1)
     else:
-        logging.info("O script já está atualizado.")
-        
+        logging.info("Script já está atualizado.")
+
 # Executa o autoupdate somente após a verificação das dependências.
 atualizar_script()
 
