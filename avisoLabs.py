@@ -126,14 +126,14 @@ class WidgetInfo(QtWidgets.QWidget):
     def formatar_texto(self):
         # Obtém informações do sistema: nome do computador.
         nome_computador = socket.gethostname()
-	ip_local = print(socket.gethostbyname(socket.gethostname()))
+        ip_local = print(socket.gethostbyname(socket.gethostname()))
         # Formata o texto com emojis e separadores.
         texto = (
             "<p style='margin:0; text-align:right; color:white;'>"
             "<b>💻 LAB. DE INFORMÁTICA - FCT/UFG</b><br>"
             "───────────────────────────<br>"
             f"{nome_computador}<br>"
-			f"{ip_local}<br><br>"
+            f"{ip_local}<br><br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
             "🚫 Não consumir alimentos no laboratório<br>"
