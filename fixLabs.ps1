@@ -372,6 +372,7 @@ function AvisoDesk {
         }
 
         # Verificar/Instalar Python
+        Write-Host "├─ Verificando se python esta instalado..." -ForegroundColor Cyan
         $python = Get-Command python -ErrorAction SilentlyContinue
         if (-not $python) {
             Write-Host "├─ Python não encontrado. Instalando..." -ForegroundColor Yellow
