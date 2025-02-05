@@ -361,30 +361,48 @@ function AvisoDesk {
             New-Item -ItemType Directory -Path $installDir -Force | Out-Null
         }
 
-        # Verifica se o Python está instalado
-        $pythonExe = Get-Command python -ErrorAction SilentlyContinue
-        if (-not $pythonExe) {
-            Write-Host "├─ Python 3 não encontrado. Instalando via winget..." -ForegroundColor Yellow
+        # Verificação e instalação do Python corrigida
+        $pythonInstalled = $false
+        
+        # Verifica se o Python está no PATH
+        try {
+            $pythonVersion = (python --version 2>&1)
+            if ($pythonVersion -match 'Python 3\.\d+\.\d+') {
+                Write-Host "├─ Python já está instalado: $pythonVersion" -ForegroundColor Green
+                $pythonInstalled = $true
+            }
+        } catch {}
+
+        # Se não encontrou pelo PATH, verifica via winget
+        if (-not $pythonInstalled) {
             try {
-                winget install --id Python.Python.3.13 --exact --accept-package-agreements --accept-source-agreements
-                # Aguardar alguns segundos para a instalação ser concluída
-                Start-Sleep -Seconds 10
-                
-                # Revalida a instalação do Python
-                $pythonExe = Get-Command python -ErrorAction Stop
-                $version = & $pythonExe.Source --version 2>&1
-                if ($version -match 'Python 3\.') {
-                    Write-Host "├─ Python 3 instalado com sucesso: $version" -ForegroundColor Green
-                } else {
-                    throw "Versão incorreta do Python detectada: $version"
+                $wingetCheck = winget list --id Python.Python.3 --accept-source-agreements
+                if ($wingetCheck -match 'Python 3') {
+                    Write-Host "├─ Python encontrado via winget" -ForegroundColor Green
+                    $pythonInstalled = $true
+                }
+            } catch {}
+        }
+
+        # Se ainda não tem Python, instala via winget
+        if (-not $pythonInstalled) {
+            Write-Host "├─ Instalando Python via winget..." -ForegroundColor Yellow
+            try {
+                winget install --id Python.Python.3 --silent --accept-package-agreements --accept-source-agreements
+                # Verifica novamente após instalação
+                Start-Sleep -Seconds 5
+                $pythonVersion = (python --version 2>&1)
+                if ($pythonVersion -match 'Python 3\.\d+\.\d+') {
+                    $pythonInstalled = $true
+                    Write-Host "├─ Python instalado com sucesso: $pythonVersion" -ForegroundColor Green
                 }
             } catch {
-                throw "Erro durante a instalação do Python: $($_.Exception.Message)"
+                throw "Falha na instalação do Python: $_"
             }
         }
-        else {
-            $version = & $pythonExe.Source --version 2>&1
-            Write-Host "├─ Python já está instalado: $version" -ForegroundColor Green
+
+        if (-not $pythonInstalled) {
+            throw "Python 3 não está instalado e a instalação falhou"
         }
 
         # Baixar script do GitHub
@@ -410,7 +428,7 @@ function AvisoDesk {
                 throw "Erro ao criar o ambiente virtual: $($_.Exception.Message)"
             }
         }
-		
+        
         # Executa uma vez o ambiente virtual com o avisoLabs.py para instalar as dependências
         $venvPython = Join-Path $venvPath "Scripts\python.exe"
         Write-Host "├─ Executando avisoLabs.py para instalar dependências..." -ForegroundColor Cyan
@@ -433,7 +451,6 @@ function AvisoDesk {
         $WshShell = New-Object -ComObject WScript.Shell
         $shortcut = $WshShell.CreateShortcut($shortcutPath)
         $shortcut.TargetPath = $venvPythonw
-        # As aspas duplas garantem que o caminho do script seja interpretado corretamente mesmo com espaços
         $shortcut.Arguments = '"' + $scriptPath + '"'
         $shortcut.WorkingDirectory = $installDir
         $shortcut.Save()
@@ -444,7 +461,6 @@ function AvisoDesk {
         Write-Host "[❗] Falha na configuração: $($_.Exception.Message)" -ForegroundColor Red
     }
     finally {
-        # Função auxiliar para aguardar input do usuário (caso exista)
         if (Get-Command Invoke-PressKey -ErrorAction SilentlyContinue) {
             Invoke-PressKey
         }
