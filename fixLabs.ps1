@@ -356,166 +356,125 @@ function AvisoDesk {
         $installDir = "C:\UFG"
         $scriptPath = Join-Path $installDir "avisoLabs.py"
         $venvPath = Join-Path $installDir ".venv"
-      
+
         # Criar diretório se não existir
         if (-not (Test-Path $installDir)) {
             New-Item -ItemType Directory -Path $installDir -Force | Out-Null
         }
-        
-        # Verifica se o Python está instalado
-        $pythonInstalled = $false
+
+        # Baixar script do GitHub
+        Write-Host "├─ Baixando script do GitHub..." -ForegroundColor Cyan
         try {
-            $pythonCmd = Get-Command python.exe -ErrorAction Stop
-            $pythonVersionOutput = & $pythonCmd --version 2>&1
-            if ($pythonVersionOutput -match 'Python 3\.\d+\.\d+') {
-                Write-Host "├─ Python já está instalado: $pythonVersionOutput" -ForegroundColor Green
-                $pythonInstalled = $true
-            }
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py" -OutFile $scriptPath -ErrorAction Stop
         }
         catch {
-            $pythonInstalled = $false
+            throw "Falha ao baixar o script: $($_.Exception.Message)"
         }
 
-        # Se o Python não estiver instalado, inicia a instalação
-        if (-not $pythonInstalled) {
-            Write-Host "├─ Python não encontrado. Iniciando instalação do Python..." -ForegroundColor Yellow
+        # Verificar/Instalar Python
+        $python = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $python) {
+            Write-Host "├─ Python não encontrado. Instalando..." -ForegroundColor Yellow
+            
+            $pythonURL = "https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe"
+            $installerPath = "$env:TEMP\python_installer.exe"
 
-            # Definir versão e arquitetura do Python
-            $pythonVersion = "3.12.1"  # Atualize conforme necessário
-            $os64Bit = [Environment]::Is64BitOperatingSystem
-            $arch = if ($os64Bit) { "amd64" } else { "win32" }
-            $installerUrl = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-$arch.exe"
-    
-            # Caminho temporário para baixar o instalador
-            $installerPath = Join-Path $env:TEMP "python-$pythonVersion-$arch.exe"
-    
-            # Baixar o instalador do Python
             try {
-                Write-Host "├─ Baixando instalador do Python..." -ForegroundColor Cyan
-                Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -ErrorAction Stop
-                Write-Host "├─ Instalador baixado com sucesso em $installerPath" -ForegroundColor Green
+                Invoke-WebRequest -Uri $pythonURL -OutFile $installerPath -ErrorAction Stop
+                Write-Host "├─ Instalando o Python (pode demorar)..." -ForegroundColor DarkGray
+                $installArgs = "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0"
+                Start-Process -FilePath $installerPath -ArgumentList $installArgs -Wait -NoNewWindow
             }
             catch {
-                throw "Falha ao baixar o instalador do Python: $($_.Exception.Message)"
+                throw "Erro na instalação do Python: $($_.Exception.Message)"
+            }
+            finally {
+                if (Test-Path $installerPath) { Remove-Item $installerPath -Force }
+            }
+
+            # Atualizar PATH após instalação
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + 
+            [System.Environment]::GetEnvironmentVariable("Path", "User")
+        }
+
+        # Criar ambiente virtual se não existir
+        if (-not (Test-Path $venvPath)) {
+            Write-Host "├─ Criando ambiente virtual em $venvPath..." -ForegroundColor Cyan
+            try {
+                $pythonExe = (Get-Command python.exe).Source
+                & $pythonExe -m venv $venvPath
+                if (-not (Test-Path (Join-Path $venvPath "Scripts\pythonw.exe"))) {
+                    throw "Falha ao criar o ambiente virtual."
+                }
+            }
+            catch {
+                throw "Erro ao criar o ambiente virtual: $($_.Exception.Message)"
             }
         }
-        
-            # Executar o instalador silenciosamente
-            try {
-                $arguments = "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0"
-                Write-Host "├─ Instalando o Python (pode demorar)..." -ForegroundColor Cyan
-                $process = Start-Process -FilePath $installerPath -ArgumentList $arguments -Wait -PassThru
-                if ($process.ExitCode -ne 0) {
-                    throw "O instalador do Python retornou o código de erro $($process.ExitCode)."
-                }
-                Write-Host "├─ Python instalado com sucesso." -ForegroundColor Green
-            }
-            catch {
-                throw "Erro durante a instalação do Python: $($_.Exception.Message)"
-            }
-    
-            # Verificar se o Python foi instalado corretamente
-            try {
-                $pythonCmd = Get-Command python.exe -ErrorAction Stop
-                $pythonVersionOutput = & $pythonCmd --version 2>&1
-                if (-not ($pythonVersionOutput -match 'Python 3\.\d+\.\d+')) {
-                    throw "Python instalado, mas a versão não corresponde a 3.x."
-                }
-                Write-Host "├─ Verificação pós-instalação bem-sucedida: $pythonVersionOutput" -ForegroundColor Green
-            }
-            catch {
-                throw "Python não foi instalado corretamente: $($_.Exception.Message)"
-            }
-
-
-            # Baixar script do GitHub
-            Write-Host "├─ Baixando script do GitHub..." -ForegroundColor Cyan
-            try {
-                Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py" -OutFile $scriptPath -ErrorAction Stop
-            }
-            catch {
-                throw "Falha ao baixar o script: $($_.Exception.Message)"
-            }
-
-            # Criar ambiente virtual se não existir
-            if (-not (Test-Path $venvPath)) {
-                Write-Host "├─ Criando ambiente virtual em $venvPath..." -ForegroundColor Cyan
-                try {
-                    $pythonExePath = (Get-Command python.exe).Source
-                    & $pythonExePath -m venv $venvPath
-                    if (-not (Test-Path (Join-Path $venvPath "Scripts\pythonw.exe"))) {
-                        throw "Falha ao criar o ambiente virtual."
-                    }
-                }
-                catch {
-                    throw "Erro ao criar o ambiente virtual: $($_.Exception.Message)"
-                }
-            }
-        
-            # Executa uma vez o ambiente virtual com o avisoLabs.py para instalar as dependências
-            $venvPython = Join-Path $venvPath "Scripts\python.exe"
-            Write-Host "├─ Executando avisoLabs.py para instalar dependências..." -ForegroundColor Cyan
-            try {
-                & $venvPython $scriptPath
-            }
-            catch {
-                throw "Erro ao executar avisoLabs.py: $($_.Exception.Message)"
-            }
-
-            # Criar atalho na inicialização usando o ambiente virtual
-            $shortcutPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\AvisoLabs.lnk"
-            $venvPythonw = Join-Path $venvPath "Scripts\pythonw.exe"
-
-            if (-not (Test-Path $venvPythonw)) {
-                throw "Python do ambiente virtual não encontrado em $venvPythonw."
-            }
-
-            Write-Host "├─ Criando atalho de inicialização..." -ForegroundColor Cyan
-            $WshShell = New-Object -ComObject WScript.Shell
-            $shortcut = $WshShell.CreateShortcut($shortcutPath)
-            $shortcut.TargetPath = $venvPythonw
-            $shortcut.Arguments = '"' + $scriptPath + '"'
-            $shortcut.WorkingDirectory = $installDir
-            $shortcut.Save()
-
-            Write-Host "[✅] Aviso configurado para iniciar automaticamente!" -ForegroundColor Green
+		
+        # Executa uma vez o ambiente virtual com o avisoLabs.py para instalar as dependências
+        $venvPython = Join-Path $venvPath "Scripts\python.exe"
+        Write-Host "├─ Executando avisoLabs.py para instalar dependências..." -ForegroundColor Cyan
+        try {
+            & $venvPython $scriptPath
         }
         catch {
-            Write-Host "[❗] Falha na configuração: $($_.Exception.Message)" -ForegroundColor Red
+            throw "Erro ao executar avisoLabs.py: $($_.Exception.Message)"
         }
-        finally {
-            if (Get-Command Invoke-PressKey -ErrorAction SilentlyContinue) {
-                Invoke-PressKey
+
+        # Criar atalho na inicialização usando o ambiente virtual
+        $shortcutPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\AvisoLabs.lnk"
+        $venvPythonw = Join-Path $venvPath "Scripts\pythonw.exe"
+
+        if (-not (Test-Path $venvPythonw)) {
+            throw "Python do ambiente virtual não encontrado em $venvPythonw."
+        }
+
+        Write-Host "├─ Criando atalho de inicialização..." -ForegroundColor Cyan
+        $WshShell = New-Object -ComObject WScript.Shell
+        $shortcut = $WshShell.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = $venvPythonw
+        # As aspas duplas garantem que o caminho do script seja interpretado corretamente mesmo com espaços
+        $shortcut.Arguments = '"' + $scriptPath + '"'
+        $shortcut.WorkingDirectory = $installDir
+        $shortcut.Save()
+
+        Write-Host "[✅] Aviso configurado para iniciar automaticamente!" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "[❗] Falha na configuração: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    finally {
+        Invoke-PressKey
+    }
+}
+
+# Execução Principal
+Testar-Admin
+
+while ($true) {
+    try {
+        Show-Menu
+        $opcao = Read-Host "`nSelecione uma opção [1-10]"
+        switch ($opcao) {
+            '1' { Listar-ProgramasInstalados }
+            '2' { Alterar-NomeComputador }
+            '3' { Aplicar-GPOsFCT }
+            '4' { Restaurar-PoliticasPadrao }
+            '5' { Atualizar-PoliticasGrupo }
+            '6' { Reiniciar-LojaWindows }
+            '7' { Habilitar-Smb }
+            '8' { Limpeza-Labs }
+            '9' { AvisoDesk }
+            '10' { exit }
+            default {
+                Write-Host "[❌] Opção inválida!" -ForegroundColor Red
+                Start-Sleep -Seconds 1
             }
         }
     }
-
-    # Execução Principal
-    Testar-Admin
-
-    while ($true) {
-        try {
-            Show-Menu
-            $opcao = Read-Host "`nSelecione uma opção [1-10]"
-            switch ($opcao) {
-                '1' { Listar-ProgramasInstalados }
-                '2' { Alterar-NomeComputador }
-                '3' { Aplicar-GPOsFCT }
-                '4' { Restaurar-PoliticasPadrao }
-                '5' { Atualizar-PoliticasGrupo }
-                '6' { Reiniciar-LojaWindows }
-                '7' { Habilitar-Smb }
-                '8' { Limpeza-Labs }
-                '9' { AvisoDesk }
-                '10' { exit }
-                default {
-                    Write-Host "[❌] Opção inválida!" -ForegroundColor Red
-                    Start-Sleep -Seconds 1
-                }
-            }
-        }
-        catch {
-            Write-Host "[❗] Erro: $($_.Exception.Message)" -ForegroundColor Red
-            Invoke-PressKey
-        }
+    catch {
+        Write-Host "[❗] Erro: $($_.Exception.Message)" -ForegroundColor Red
+        Invoke-PressKey
     }
+}
