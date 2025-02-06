@@ -5,6 +5,7 @@ import subprocess
 import importlib.util
 import socket
 import logging
+import hashlib
 
 # Configuração do logging para salvar em C:\UFG\script.log
 log_dir = r"C:\UFG"
