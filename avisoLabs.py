@@ -61,12 +61,11 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 def auto_update():
     """
     Verifica e aplica atualizações do script remotamente.
-    Executa apenas na inicialização do programa.
     """
     url_script = "https://raw.githubusercontent.com/ti-fct/scripts/main/avisoLabs.py"
     caminho_script = r"C:\ufg\avisoLabs.py"
     temp_script = r"C:\ufg\avisoLabs_new.py"
-    bat_file = r"C:\ufg\update_script.bat"
+    bat_file = r"C:\ufg\update_script_{pid}.bat".format(pid=os.getpid())  # Nome único
 
     try:
         # Buscar versão remota
@@ -74,11 +73,15 @@ def auto_update():
         response.raise_for_status()
         novo_codigo = response.text
 
-        # Comparar com versão local
-        with open(caminho_script, 'r', encoding='utf-8') as f:
-            codigo_local = f.read()
+        # Calcular hashes para comparação segura
+        hash_local = hashlib.md5()
+        with open(caminho_script, 'rb') as f:
+            hash_local.update(f.read())
+        
+        hash_remoto = hashlib.md5()
+        hash_remoto.update(novo_codigo.encode('utf-8'))
 
-        if novo_codigo == codigo_local:
+        if hash_local.hexdigest() == hash_remoto.hexdigest():
             logging.info("Nenhuma atualização disponível.")
             return
 
@@ -88,13 +91,18 @@ def auto_update():
         with open(temp_script, 'w', encoding='utf-8') as f:
             f.write(novo_codigo)
 
-        # Criar arquivo batch para substituição
+        # Criar arquivo batch melhorado
         batch_script = f"""
         @echo off
-        TIMEOUT /t 3 /nobreak >nul
+        :loop
+        tasklist /FI "IMAGENAME eq python.exe" /FI "WINDOWTITLE eq {os.path.basename(__file__)}" | find "python.exe" > nul
+        if %ERRORLEVEL% == 0 (
+            timeout /t 1 /nobreak > nul
+            goto loop
+        )
         del /F /Q "{caminho_script}"
         move /Y "{temp_script}" "{caminho_script}"
-        start "" "{sys.executable}" "{caminho_script}"
+        start "" /B "{sys.executable}" "{caminho_script}"
         del /F /Q "{bat_file}"
         """
 
@@ -102,7 +110,7 @@ def auto_update():
             f.write(batch_script)
 
         # Executar batch e encerrar
-        subprocess.Popen([bat_file], shell=True)
+        subprocess.Popen(['cmd.exe', '/C', bat_file], creationflags=subprocess.CREATE_NO_WINDOW)
         sys.exit(0)
 
     except Exception as e:
