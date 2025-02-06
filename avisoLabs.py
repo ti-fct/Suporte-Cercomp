@@ -5,7 +5,6 @@ import subprocess
 import importlib.util
 import socket
 import logging
-import re
 
 # Configuração do logging para salvar em C:\UFG\script.log
 log_dir = r"C:\UFG"
@@ -21,6 +20,7 @@ logging.basicConfig(
     ]
 )
 
+# Instala dependencias necessárias
 def verificar_e_instalar(nome_pacote, nome_modulo=None):
     """
     Verifica se o módulo está instalado e, se não estiver,
@@ -57,46 +57,56 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 # -----------------------------
 # 2. Função de Auto-Update
 # -----------------------------
-def atualizar_script():
-    url = "https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/avisoLabs.py"
-    
-    try:
-        resposta = requests.get(url)
-        resposta.raise_for_status()
-    except requests.RequestException as e:
-        logging.error(f"Erro ao acessar a URL para atualização: {e}")
-        return
 
-    conteudo_remoto = resposta.text
-    caminho_script = os.path.realpath(__file__)
+def auto_update():
+    """
+    Verifica e aplica atualizações do script remotamente.
+    Executa apenas na inicialização do programa.
+    """
+    url_script = "https://raw.githubusercontent.com/ti-fct/scripts/main/avisoLabs.py"
+    caminho_script = r"C:\ufg\avisoLabs.py"
+    temp_script = r"C:\ufg\avisoLabs_new.py"
+    bat_file = r"C:\ufg\update_script.bat"
 
     try:
-        with open(caminho_script, "r", encoding="utf-8") as arquivo:
-            conteudo_atual = arquivo.read()
+        # Buscar versão remota
+        response = requests.get(url_script, timeout=10)
+        response.raise_for_status()
+        novo_codigo = response.text
+
+        # Comparar com versão local
+        with open(caminho_script, 'r', encoding='utf-8') as f:
+            codigo_local = f.read()
+
+        if novo_codigo == codigo_local:
+            logging.info("Nenhuma atualização disponível.")
+            return
+
+        logging.info("Nova versão encontrada. Iniciando atualização...")
+
+        # Escrever novo arquivo temporário
+        with open(temp_script, 'w', encoding='utf-8') as f:
+            f.write(novo_codigo)
+
+        # Criar arquivo batch para substituição
+        batch_script = f"""
+        @echo off
+        TIMEOUT /t 3 /nobreak >nul
+        del /F /Q "{caminho_script}"
+        move /Y "{temp_script}" "{caminho_script}"
+        start "" "{sys.executable}" "{caminho_script}"
+        del /F /Q "{bat_file}"
+        """
+
+        with open(bat_file, 'w') as f:
+            f.write(batch_script)
+
+        # Executar batch e encerrar
+        subprocess.Popen([bat_file], shell=True)
+        sys.exit(0)
+
     except Exception as e:
-        logging.error(f"Erro ao ler o script atual: {e}")
-        return
-
-    # Normaliza quebras de linha para LF
-    conteudo_remoto_normalizado = re.sub(r'\r\n?', '\n', conteudo_remoto)
-    conteudo_atual_normalizado = re.sub(r'\r\n?', '\n', conteudo_atual)
-
-    if conteudo_atual_normalizado != conteudo_remoto_normalizado:
-        logging.info("Nova versão encontrada. Atualizando o script...")
-        try:
-            # Escreve com newline='\n' para manter LF
-            with open(caminho_script, "w", encoding="utf-8", newline='\n') as arquivo:
-                arquivo.write(conteudo_remoto)
-            logging.info("Script atualizado com sucesso. Reinicie o programa.")
-            sys.exit(0)
-        except Exception as e:
-            logging.error(f"Erro ao atualizar: {e}")
-            sys.exit(1)
-    else:
-        logging.info("Script já está atualizado.")
-
-# Executa o autoupdate somente após a verificação das dependências.
-atualizar_script()
+        logging.error(f"Falha na auto-atualização: {str(e)}")
 
 # -----------------------------
 # 3. Código Principal (Interface gráfica com PyQt5)
@@ -147,7 +157,7 @@ class WidgetInfo(QtWidgets.QWidget):
             "<b>💻 LAB. DE INFORMÁTICA - FCT/UFG</b><br>"
             "───────────────────────────<br>"
             f"{nome_computador}<br><br>"
-#            f"{ip_local}<br><br>"
+            #f"{ip_local}<br><br>"
             "<b>📜 REGRAS DE USO</b><br>"
             "🎓 Uso exclusivo para atividades acadêmicas<br>"
             "🚫 Não consumir alimentos no laboratório<br>"
@@ -183,11 +193,12 @@ class WidgetInfo(QtWidgets.QWidget):
         super().changeEvent(evento)
 
 def principal():
-    logging.info("Iniciando aplicação...                Feche a janela para sair!")
+    logging.info("Iniciando aplicação..................Feche a janela para sair!")
     app = QtWidgets.QApplication(sys.argv)
     widget = WidgetInfo()
     widget.show()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
+    auto_update()
     principal()
