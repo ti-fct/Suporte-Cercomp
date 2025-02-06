@@ -371,32 +371,26 @@ function AvisoDesk {
             throw "Falha ao baixar o script: $($_.Exception.Message)"
         }
 
-        # Verificar/Instalar Python
-        Write-Host "├─ Verificando se python esta instalado..." -ForegroundColor Cyan
-        $python = Get-Command python -ErrorAction SilentlyContinue
-        if (-not $python) {
-            Write-Host "├─ Python não encontrado. Instalando..." -ForegroundColor Yellow
-            
-            $pythonURL = "https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe"
-            $installerPath = "$env:TEMP\python_installer.exe"
+        # Instalar Python incondicionalmente
+        Write-Host "├─ Instalando Python..." -ForegroundColor Yellow
+        $pythonURL = "https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe"
+        $installerPath = "$env:TEMP\python_installer.exe"
 
-            try {
-                Invoke-WebRequest -Uri $pythonURL -OutFile $installerPath -ErrorAction Stop
-                Write-Host "├─ Instalando o Python (pode demorar)..." -ForegroundColor DarkGray
-                $installArgs = "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0"
-                Start-Process -FilePath $installerPath -ArgumentList $installArgs -Wait -NoNewWindow
-            }
-            catch {
-                throw "Erro na instalação do Python: $($_.Exception.Message)"
-            }
-            finally {
-                if (Test-Path $installerPath) { Remove-Item $installerPath -Force }
-            }
-
-            # Atualizar PATH após instalação
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + 
-            [System.Environment]::GetEnvironmentVariable("Path", "User")
+        try {
+            Invoke-WebRequest -Uri $pythonURL -OutFile $installerPath -ErrorAction Stop
+            Write-Host "├─ Instalando o Python (pode demorar)..." -ForegroundColor DarkGray
+            $installArgs = "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0"
+            Start-Process -FilePath $installerPath -ArgumentList $installArgs -Wait -NoNewWindow
         }
+        catch {
+            throw "Erro na instalação do Python: $($_.Exception.Message)"
+        }
+        finally {
+            if (Test-Path $installerPath) { Remove-Item $installerPath -Force }
+        }
+
+        # Atualizar PATH após instalação
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
         # Criar ambiente virtual se não existir
         if (-not (Test-Path $venvPath)) {
