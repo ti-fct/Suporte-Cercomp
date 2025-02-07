@@ -350,7 +350,7 @@ function Limpeza-Labs {
 
 function AvisoDesk {
     try {
-        Write-Host "`n[🚨] Configurando aviso no desktop..." -ForegroundColor Red
+        Write-Host "n[🚨] Configurando aviso no desktop..." -ForegroundColor Red
 
         # Diretório para salvar o script e ambiente virtual
         $installDir = "C:\UFG"
@@ -406,25 +406,13 @@ function AvisoDesk {
                 throw "Erro ao criar o ambiente virtual: $($_.Exception.Message)"
             }
         }
-		
-        # Executa uma vez o ambiente virtual com o avisoLabs.py para instalar as dependências
-        $venvPython = Join-Path $venvPath "Scripts\python.exe"
-        Write-Host "├─ Executando avisoLabs.py para instalar dependências..." -ForegroundColor Cyan
-        try {
-            & $venvPython $scriptPath
-        }
-        catch {
-            throw "Erro ao executar avisoLabs.py: $($_.Exception.Message)"
-        }
 
-        # Criar atalho na inicialização usando o ambiente virtual
+        # Criar atalho na inicialização antes de executar o script
         $shortcutPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\AvisoLabs.lnk"
         $venvPythonw = Join-Path $venvPath "Scripts\pythonw.exe"
-
         if (-not (Test-Path $venvPythonw)) {
             throw "Python do ambiente virtual não encontrado em $venvPythonw."
         }
-
         Write-Host "├─ Criando atalho de inicialização..." -ForegroundColor Cyan
         $WshShell = New-Object -ComObject WScript.Shell
         $shortcut = $WshShell.CreateShortcut($shortcutPath)
@@ -433,6 +421,17 @@ function AvisoDesk {
         $shortcut.Arguments = '"' + $scriptPath + '"'
         $shortcut.WorkingDirectory = $installDir
         $shortcut.Save()
+        Write-Host "[✅] Atalho criado com sucesso!" -ForegroundColor Green
+
+        # Executa o avisoLabs.py para instalar as dependências 
+        $venvPython = Join-Path $venvPath "Scripts\python.exe"
+        Write-Host "├─ Executando avisoLabs.py para instalar dependências..." -ForegroundColor Cyan
+        try {
+            & $venvPython $scriptPath
+        }
+        catch {
+            throw "Erro ao executar avisoLabs.py: $($_.Exception.Message)"
+        }
 
         Write-Host "[✅] Aviso configurado para iniciar automaticamente!" -ForegroundColor Green
     }
