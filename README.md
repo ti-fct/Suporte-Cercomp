@@ -83,7 +83,7 @@ Contribuições são bem-vindas! Siga estas etapas:
 
 ## 📜 Licença
 
-Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) para mais detalhes.
+Distribuído sob a licença GNU General Public License v3.0. Veja [LICENSE](LICENSE) para mais detalhes.
 
 ---
 
