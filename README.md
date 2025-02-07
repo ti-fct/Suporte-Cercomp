@@ -18,7 +18,7 @@ Repositório oficial de scripts PowerShell para administração de sistemas e la
 
 ## 🚀 Funcionalidades Destacadas
 
-### 🔖 `avisoLabs.ps1`
+### 🔖 `avisoLabs.py`
 - Exibe seguinte aviso no desktop dos labs:
   - Nome do computador.
   - Regras de uso do laboratório.
