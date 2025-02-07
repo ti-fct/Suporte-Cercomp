@@ -54,7 +54,7 @@ Repositório oficial de scripts PowerShell para administração de sistemas e la
 1. **Executar o Script**: Execute o script com o seguinte comando no PowerShell:
 
    ```powershell
-   irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fct.ps1 | iex
+   irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fixLabs.ps1 | iex
    ```
 
 ---
