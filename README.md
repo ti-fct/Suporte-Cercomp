@@ -1,95 +1,127 @@
-<p align="center">UFG - CAMPUS APARECIDA DE GOIÂNIA</p>
+# Ferramenta de Manutenção FCT/UFG (Python Edition)
 
-# 🛠️ Scripts de Gerenciamento - FCT/UFG
+![versão](https://img.shields.io/badge/versão-5.1-blue)
+![licença](https://img.shields.io/badge/licença-MIT-green)
+![plataforma](https://img.shields.io/badge/plataforma-Windows-informational)
 
-Repositório oficial de scripts PowerShell para administração de sistemas e laboratórios da Faculdade de Ciências e Tecnologia (FCT/UFG).  
-
----
-
-## 📂 Scripts Disponíveis
-
-| Nome do Script         | Descrição                                                                                  | Versão |
-|------------------------|------------------------------------------------------------------------------------------|--------|
-| [**`avisoLabs.py`**](avisoLabs.py) | Exibe avisos institucionais e regras de uso em laboratórios (canto superior direito da tela). | `v5`   |
-| [**`fixLabs.ps1`**](fixLabs.ps1)               | Script modular para manutenção de labs com Windows para quem não tem AD (GPOs, limpeza, redes, etc.).           | `v3` |
-| *Em breve...*          | Novos scripts serão adicionados aqui!                                                    |        |
+Ferramenta de manutenção e automação para estações de trabalho Windows, desenvolvida para os laboratórios da Faculdade de Ciências e Tecnologia (FCT) da Universidade Federal de Goiás (UFG). O script foi reescrito em Python para maior portabilidade e facilidade de distribuição.
 
 ---
 
-## 🚀 Funcionalidades Destacadas
+## ✨ Funcionalidades Principais
 
-### 🔖 `avisoLabs.py`
-- Exibe seguinte aviso no desktop dos labs:
-  - Nome do computador.
-  - Regras de uso do laboratório.
-  - Procedimentos ao sair.
-  - Contato de suporte técnico.
-- Interface visual customizada (transparente e responsiva).
-
-### ⚙️ `fixLabs.ps1`
-- Menu interativo com diversas opções de administração:
- 1. 📜 Listar Programas Instalados
- 2. 💻 Alterar Nome do Computador
- 3. 🏛 Aplicar GPOs da FCT
- 4. 🧹 Restaurar GPOs Padrão do Windows
- 5. 🔄 Atualizar GPOs
- 6. 🛒 Reset Windows Store
- 7. 🔓 Habilitar Acesso SMB
- 8. 🧼 Limpeza Geral do Windows
- 9. 🚨 Adiciona Aviso no Desktop
-- Suporte a execução com privilégios elevados.
+- 💻 **Gerenciamento do Sistema**: Altere o nome do computador de forma rápida e segura.  
+- 🏛️ **Políticas de Grupo (GPO)**: Aplique, remova e atualize GPOs personalizadas da instituição.  
+- 🛒 **Reparo de Aplicativos**: Resete a Microsoft Store para corrigir problemas de funcionamento.  
+- 🌐 **Conectividade**: Habilite o acesso a compartilhamentos de rede legados (SMBv1) para compatibilidade.  
+- 🧼 **Limpeza Profunda**: Execute uma limpeza completa do sistema (temporários, lixeira, caches) com o BleachBit automatizado.  
+- 🚨 **Aviso no Desktop**: Adicione um widget fixo com regras do laboratório.  
+- 📄 **Logging Automático**: Todas as operações são registradas em `C:\UFG_Manutencao\script.log`.
 
 ---
 
-## 📥 Como Usar
+## 📸 Screenshot
 
-### Pré-requisitos
-- PowerShell 5.0 ou superior.
-- Python 3 ou superior.
-- Permissões de administrador.
+> Aqui está uma prévia da ferramenta em ação:
 
-
-### Execução
-
-1. **Executar o Script**: Execute o script com o seguinte comando no PowerShell:
-
-   ```powershell
-   irm https://raw.githubusercontent.com/ti-fct/scripts/refs/heads/main/fixLabs.ps1 | iex
-   ```
+<!-- Substitua o link abaixo pela imagem real -->
+`![Screenshot](https://link-da-sua-imagem.com)`
 
 ---
 
-## 🛠️ Futuras Atualizações
+## 📋 Requisitos
 
-- **Novos scripts planejados**:
-- Backup automatizado de estações.
-- Melhoria na extração de GPOs.
-- Melhorias na documentação e exemplos de uso.
-- Lista de softwares usados nos laboratórios.
+### Para Usuários Finais
+- Windows 10 ou 11  
+- Acesso de Administrador
+
+### Para Desenvolvedores
+- Python 3.8+  
+- pip (gerenciador de pacotes do Python)  
+- Repositório clonado e dependências instaladas  
+
+---
+
+## 🚀 Instalação e Uso
+
+### ✅ Opção 1: Usando o Executável (Recomendado)
+
+1. Vá para a seção **Releases** deste repositório.  
+2. Baixe o arquivo `ManutencaoUFG.exe`.  
+3. Clique com o botão direito e selecione **"Executar como administrador"**.  
+4. O menu principal será exibido.  
+
+### ⚙️ Opção 2: Rodando a partir do Código-Fonte
+
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/seu-repositorio.git
+cd seu-repositorio
+
+# Crie e ative um ambiente virtual
+python -m venv .venv
+.\.venv\Scripts\activate
+
+# Instale as dependências
+pip install -r requirements.txt
+
+# Execute como administrador
+python ManutencaoUFG.py
+```
+
+> **Nota**: Certifique-se de que `requirements.txt` inclua `requests` e `PyQt5` ou instale-os manualmente:
+```bash
+pip install requests PyQt5
+```
+
+---
+
+## 🛠️ Como Compilar seu Próprio Executável
+
+Se você alterou o código-fonte e deseja gerar um `.exe`:
+
+```bash
+# Instale o PyInstaller
+pip install pyinstaller
+
+# Compile com elevação de privilégios
+pyinstaller --onefile --uac-admin --name "ManutencaoUFG" ManutencaoUFG.py
+```
+
+- `--onefile`: Gera um único arquivo `.exe`  
+- `--uac-admin`: Solicita execução como administrador  
+- `--name`: Define o nome do executável  
+
+> O executável será criado na pasta `dist`.
+
+---
+
+## 📁 Logging
+
+Todas as ações são registradas em:
+
+```
+C:\UFG_Manutencao\script.log
+```
+
+Esse arquivo é essencial para diagnóstico de problemas.
 
 ---
 
 ## 🤝 Contribuição
 
-Contribuições são bem-vindas! Siga estas etapas:
+Contribuições são bem-vindas!
 
-1. Faça um fork do projeto.
-2. Crie uma branch: `git checkout -b minha-feature`.
-3. Commit suas mudanças: `git commit -m 'Adicionei um script incrível'`.
-4. Push para a branch: `git push origin minha-feature`.
-5. Abra um **Pull Request**.
+1. Faça um **Fork** do projeto.  
+2. Crie uma branch: `git checkout -b feature/sua-feature`  
+3. Commit: `git commit -m 'Adiciona nova feature'`  
+4. Push: `git push origin feature/sua-feature`  
+5. Abra um **Pull Request**
 
----
-
-## 📜 Licença
-
-Distribuído sob a licença GNU General Public License v3.0. Veja [LICENSE](LICENSE) para mais detalhes.
+Também é possível abrir uma **Issue** para relatar bugs ou sugerir melhorias.
 
 ---
 
-## 👨💻 Autores
+## 📄 Licença
 
-- **Departamento de TI - FCT/UFG**
-<p align="center">
-<img src="https://img.shields.io/badge/Powered%20by-PowerShell-blue?style=for-the-badge&logo=powershell" alt="Powered by PowerShell"> <img src="https://img.shields.io/badge/Powered%20by-Python-3776AB?style=for-the-badge&logo=python" alt="Powered by Python">
-</p>
+Distribuído sob a [Licença MIT](LICENSE).
