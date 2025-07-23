@@ -111,7 +111,7 @@ class DialogoSobre(QDialog):
         titulo.setObjectName("LabelTituloSobre")
         layout.addWidget(titulo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        versao = QLabel("Versão 5.1")
+        versao = QLabel("Versão 2.1")
         versao.setObjectName("LabelVersaoSobre")
         layout.addWidget(versao, alignment=Qt.AlignmentFlag.AlignCenter)
         
