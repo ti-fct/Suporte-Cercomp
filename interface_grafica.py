@@ -4,6 +4,7 @@ import logging
 import time
 import os
 import json
+import sys
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
@@ -19,7 +20,8 @@ from backend import (
     DIRETORIO_APP_DATA, ARQUIVO_CONFIG,
     renomear_computador, aplicar_gpos_fct, aplicar_tema_fct,
     restaurar_gpos_padrao, forcar_atualizacao_gpos, resetar_microsoft_store,
-    habilitar_acesso_smb_legado, iniciar_limpeza_sistema, gerenciar_widget_desktop
+    iniciar_limpeza_sistema, gerenciar_widget_desktop,
+    manutencao_preventiva_1_click, baixar_recursos_necessarios
 )
 
 # Classe GerenciadorConfig
@@ -28,9 +30,10 @@ class GerenciadorConfig:
     def __init__(self, caminho_arquivo=ARQUIVO_CONFIG):
         self.caminho_arquivo = caminho_arquivo
         self.padroes = {
-            "CAMINHO_TEMA": r"\\fog\gpos\fct-labs.deskthemepack",
-            "CAMINHO_BASE_GPO": r"\\fog\gpos",
+            "CAMINHO_TEMA": os.path.join(DIRETORIO_APP_DATA, "fct-labs.deskthemepack"),
+            "CAMINHO_BASE_GPO": DIRETORIO_APP_DATA,
             "URL_BLEACHBIT": "https://download.bleachbit.org/BleachBit-5.0.0-portable.zip",
+            "URL_REPOSITORIO_FCT": "https://github.com/SEU_USUARIO/SEU_REPOSITORIO/releases/download/v1.0/"
         }
 
     def carregar(self):
@@ -39,20 +42,23 @@ class GerenciadorConfig:
         try:
             with open(self.caminho_arquivo, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            # Garante que todas as chaves padrão existam
             for chave, valor in self.padroes.items():
                 config.setdefault(chave, valor)
             return config
         except (json.JSONDecodeError, IOError):
-            self.salvar(self.padroes)
             return self.padroes
 
     def salvar(self, dados):
         with open(self.caminho_arquivo, 'w', encoding='utf-8') as f:
             json.dump(dados, f, indent=4)
+    
+    # --- NOVO: Função para resetar configurações ---
+    def resetar_para_padroes(self):
+        """Salva o dicionário de padrões, efetivamente resetando o arquivo de configuração."""
+        self.salvar(self.padroes)
 
 
-# Classe DialogoConfig
+# --- ATUALIZADO: Classe DialogoConfig ---
 class DialogoConfig(QDialog):
     """Janela de diálogo para editar as configurações."""
     def __init__(self, gerenciador_config, parent=None):
@@ -61,21 +67,33 @@ class DialogoConfig(QDialog):
         self.config_atual = self.gerenciador.carregar()
 
         self.setWindowTitle("Configurações")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(550)
         self.layout = QVBoxLayout(self)
 
         form_layout = QFormLayout()
         self.entradas = {}
         for chave, valor in self.config_atual.items():
             campo_texto = QLineEdit(valor)
+            campo_texto.setToolTip(f"Valor padrão: {self.gerenciador.padroes.get(chave, 'N/A')}")
             form_layout.addRow(QLabel(chave.replace("_", " ").title() + ":"), campo_texto)
             self.entradas[chave] = campo_texto
         self.layout.addLayout(form_layout)
 
-        botoes = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-        botoes.accepted.connect(self.salvar_e_fechar)
-        botoes.rejected.connect(self.reject)
-        self.layout.addWidget(botoes)
+        # Adiciona os botões, incluindo o de Reset
+        self.botoes = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save |
+            QDialogButtonBox.StandardButton.Cancel |
+            QDialogButtonBox.StandardButton.Reset
+        )
+        # Renomeia o botão de Reset para um texto mais claro
+        self.botoes.button(QDialogButtonBox.StandardButton.Reset).setText("Restaurar Padrões")
+        
+        self.botoes.accepted.connect(self.salvar_e_fechar)
+        self.botoes.rejected.connect(self.reject)
+        # Conecta o sinal 'clicked' a um manipulador para tratar o botão de reset
+        self.botoes.clicked.connect(self.gerenciar_clique_botao)
+        
+        self.layout.addWidget(self.botoes)
 
     def salvar_e_fechar(self):
         for chave, campo_texto in self.entradas.items():
@@ -83,11 +101,35 @@ class DialogoConfig(QDialog):
         self.gerenciador.salvar(self.config_atual)
         self.accept()
 
+    def gerenciar_clique_botao(self, button):
+        """Verifica qual botão foi clicado e age de acordo."""
+        # Pega a "role" (função) do botão que foi clicado
+        if self.botoes.buttonRole(button) == QDialogButtonBox.ButtonRole.ResetRole:
+            self.resetar_configuracoes()
 
-# --- NOVO: Janela "Sobre" ---
+    def resetar_configuracoes(self):
+        """Pede confirmação e reseta as configurações para o padrão."""
+        confirmacao = QMessageBox.question(
+            self,
+            "Restaurar Padrões",
+            "Você tem certeza que deseja restaurar todas as configurações para os valores padrão?\nAs personalizações atuais serão perdidas.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if confirmacao == QMessageBox.StandardButton.Yes:
+            self.gerenciador.resetar_para_padroes()
+            # Recarrega os padrões para garantir que estão atualizados
+            novos_padroes = self.gerenciador.carregar() 
+            # Atualiza os campos de texto na tela com os novos valores
+            for chave, campo_texto in self.entradas.items():
+                campo_texto.setText(novos_padroes.get(chave, ""))
+            QMessageBox.information(self, "Sucesso", "As configurações foram restauradas para o padrão.")
+
+
+# --- Janela "Sobre" ---
 class DialogoSobre(QDialog):
     """Janela de diálogo com informações sobre a aplicação."""
-    def __init__(self, parent=None):
+    def __init__(self, caminho_logo,parent=None):
         super().__init__(parent)
         self.setWindowTitle("Sobre")
         self.setMinimumWidth(350)
@@ -95,51 +137,43 @@ class DialogoSobre(QDialog):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Logo da Unidade
         label_logo = QLabel()
         label_logo.setObjectName("LabelLogo")
-        if os.path.exists("logo.png"):
-            pixmap = QPixmap("logo.png")
+        if os.path.exists(caminho_logo):
+            pixmap = QPixmap(caminho_logo)
             label_logo.setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         else:
-            label_logo.setText("Logo não encontrado\n(adicione logo.png)")
-            label_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label_logo.setText("Logo não encontrado\n(logo.png)")
         layout.addWidget(label_logo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Título e Versão
         titulo = QLabel("Ferramenta de Manutenção FCT/UFG")
         titulo.setObjectName("LabelTituloSobre")
         layout.addWidget(titulo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        versao = QLabel("Versão 2.1")
+        versao = QLabel("Versão 2.2") # Versão atualizada
         versao.setObjectName("LabelVersaoSobre")
         layout.addWidget(versao, alignment=Qt.AlignmentFlag.AlignCenter)
         
-        # Botão OK
         botoes = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
         botoes.accepted.connect(self.accept)
         layout.addWidget(botoes, alignment=Qt.AlignmentFlag.AlignCenter)
 
 
-# (A classe Worker continua a mesma)
+# Classe Worker (sem alterações)
 class Worker(QObject):
-    """Executa uma tarefa em uma thread separada para não travar a GUI."""
     progresso = pyqtSignal(str)
     finalizado = pyqtSignal()
-
     def __init__(self, funcao, *args, **kwargs):
         super().__init__()
         self.funcao = funcao
         self.args = args
         self.kwargs = kwargs
-
     def run(self):
         try:
             gerador = self.funcao(*self.args, **self.kwargs)
             for resultado in gerador:
-                if resultado:
-                    self.progresso.emit(str(resultado))
-                time.sleep(0.05)  # Pequena pausa para a GUI atualizar
+                if resultado: self.progresso.emit(str(resultado))
+                time.sleep(0.05)
         except Exception as e:
             self.progresso.emit(f"ERRO NÃO TRATADO NA TAREFA: {e}")
         finally:
@@ -153,10 +187,8 @@ class JanelaPrincipal(QMainWindow):
         self.worker = None
         self.gerenciador_config = GerenciadorConfig()
         self.config = self.gerenciador_config.carregar()
-
         self.inicializar_ui()
-
-        self.logar_no_console("Ferramenta de Manutenção FCT/UFG v5.1 pronta.")
+        self.logar_no_console("Ferramenta de Manutenção FCT/UFG pronta.")
         self.logar_no_console(f"Diretório de dados: {DIRETORIO_APP_DATA}")
         self.logar_no_console("Selecione uma ação no menu à esquerda.")
 
@@ -164,44 +196,66 @@ class JanelaPrincipal(QMainWindow):
         self.setWindowTitle("Ferramenta de Manutenção FCT/UFG")
         self.setWindowIcon(qta.icon('fa5s.tools', color='#FFFFFF'))
         self.setGeometry(100, 100, 1000, 600)
-
         widget_central = QWidget()
         self.setCentralWidget(widget_central)
         layout_principal = QHBoxLayout(widget_central)
-
-        # --- Painel Esquerdo (Botões de Ação) ---
         painel_esquerdo_widget = QWidget()
         painel_esquerdo_widget.setObjectName("PainelEsquerdo")
         painel_esquerdo_layout = self.criar_painel_esquerdo()
         painel_esquerdo_widget.setLayout(painel_esquerdo_layout)
-
-        # --- Painel Direito (Console de Log) ---
         painel_direito = self.criar_painel_direito()
-
         layout_principal.addWidget(painel_esquerdo_widget, 1)
         layout_principal.addLayout(painel_direito, 3)
 
+    # --- ATUALIZADO: criar_painel_esquerdo ---
     def criar_painel_esquerdo(self):
         layout = QVBoxLayout()
         layout.setSpacing(10)
 
-        titulo = QLabel("Ações Rápidas")
-        titulo.setFont(QFont("Segoe UI", 16))
-        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(titulo)
+        btn_manutencao_completa = QPushButton(" Manutenção 1 Clique ")
+        btn_manutencao_completa.setIcon(qta.icon('fa5s.rocket', color='#FFFFFF'))
+        btn_manutencao_completa.setObjectName("BotaoManutencaoPreventiva")
+        
+        texto_confirmacao = (
+            "Esta ação executará TODAS as seguintes tarefas:\n\n"
+            "- Baixar/Atualizar arquivos da FCT (GPOs, Tema)\n"
+            "- Restaurar GPOs Padrão\n"
+            "- Forçar Atualização de GPOs\n"
+            "- Limpeza Geral do Sistema\n"
+            "- Limpeza das pastas Desktop/Downloads do usuário\n"
+            "- Aplicar Tema FCT\n"
+            "- Aplicar GPOs FCT\n\n"
+            "O processo pode demorar vários minutos. Deseja continuar?"
+        )
+        btn_manutencao_completa.clicked.connect(lambda: self.executar_com_confirmacao(
+            manutencao_preventiva_1_click,
+            "Confirmar Manutenção Completa",
+            texto_confirmacao,
+            self.config
+        ))
 
-        # Lista de botões de ações principais
+        titulo_widget_preventiva = QLabel("Manutenção Preventiva")
+        titulo_widget_preventiva.setFont(QFont("Segoe UI", 14))
+        titulo_widget_preventiva.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(titulo_widget_preventiva)
+        layout.addWidget(btn_manutencao_completa)
+        layout.addSpacing(15)
+        
+        titulo_acoes = QLabel("Ações Individuais")
+        titulo_acoes.setFont(QFont("Segoe UI", 16))
+        titulo_acoes.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(titulo_acoes)
+
         botoes_info = [
             ("Renomear PC", 'fa5s.laptop-code', self.executar_renomear_computador),
             ("Aplicar GPOs FCT", 'fa5s.university', lambda: self.executar_tarefa(aplicar_gpos_fct, self.config['CAMINHO_BASE_GPO'])),
             ("Aplicar Tema FCT", 'fa5s.palette', lambda: self.executar_tarefa(aplicar_tema_fct, self.config['CAMINHO_TEMA'])),
-            ("Restaurar GPOs Padrão", 'fa5s.undo-alt', lambda: self.executar_com_confirmacao(restaurar_gpos_padrao, "Restaurar GPOs?", "Isso removerá todas as políticas locais. Deseja continuar?")),
+            ("Restaurar GPOs Padrão", 'fa5s.undo-alt', lambda: self.executar_com_confirmacao(restaurar_gpos_padrao, "Restaurar GPOs?", "Isso removerá todas as políticas locais.")),
             ("Forçar Atualização de GPOs", 'fa5s.sync-alt', lambda: self.executar_tarefa(forcar_atualizacao_gpos)),
             ("Resetar Microsoft Store", 'fa5s.store-alt', lambda: self.executar_tarefa(resetar_microsoft_store)),
-            ("Habilitar SMBv1 (Só Win11)", 'fa5s.folder-open', lambda: self.executar_com_confirmacao(habilitar_acesso_smb_legado, "Habilitar SMBv1?", "Isso habilita um protocolo inseguro. Use apenas em redes confiáveis.")),
             ("Limpeza Geral do Sistema", 'fa5s.broom', lambda: self.executar_tarefa(iniciar_limpeza_sistema, self.config['URL_BLEACHBIT']))
         ]
-        self.botoes_acao = []
+        self.botoes_acao = [btn_manutencao_completa]
         for texto, icone, funcao in botoes_info:
             btn = QPushButton(f" {texto}")
             btn.setIcon(qta.icon(icone, color='#FFFFFF'))
@@ -209,11 +263,11 @@ class JanelaPrincipal(QMainWindow):
             layout.addWidget(btn)
             self.botoes_acao.append(btn)
         
-        layout.addSpacing(20)
-        titulo_widget = QLabel("Aviso de Desktop")
-        titulo_widget.setFont(QFont("Segoe UI", 14))
-        titulo_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(titulo_widget)
+        layout.addSpacing(15)
+        titulo_aviso = QLabel("Aviso de Desktop")
+        titulo_aviso.setFont(QFont("Segoe UI", 14))
+        titulo_aviso.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(titulo_aviso)
 
         btn_add_widget = QPushButton(" Adicionar Aviso")
         btn_add_widget.setIcon(qta.icon('fa5s.plus-circle', color='#FFFFFF'))
@@ -227,16 +281,27 @@ class JanelaPrincipal(QMainWindow):
         layout.addWidget(btn_rem_widget)
         self.botoes_acao.append(btn_rem_widget)
 
-        layout.addStretch() # Empurra os botões abaixo para o final
+        layout.addStretch()
 
-        # Botão de Configurações
+        layout.addSpacing(15)
+        titulo_sistema = QLabel("Sistema")
+        titulo_sistema.setFont(QFont("Segoe UI", 14))
+        titulo_sistema.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(titulo_sistema)
+        
+        btn_baixar_recursos = QPushButton(" Baixar Recursos FCT")
+        btn_baixar_recursos.setIcon(qta.icon('fa5s.download', color='#FFFFFF'))
+        btn_baixar_recursos.clicked.connect(lambda: self.executar_tarefa(baixar_recursos_necessarios, self.config['URL_REPOSITORIO_FCT']))
+        layout.addWidget(btn_baixar_recursos)
+        self.botoes_acao.append(btn_baixar_recursos)
+
         btn_config = QPushButton(" Configurações")
         btn_config.setIcon(qta.icon('fa5s.cog', color='#FFFFFF'))
         btn_config.clicked.connect(self.abrir_dialogo_config)
         layout.addWidget(btn_config)
         self.botoes_acao.append(btn_config)
 
-        # --- NOVO: Botão Sobre ---
+        # --- BOTÃO SOBRE (RESTAURADO) ---
         btn_sobre = QPushButton(" Sobre")
         btn_sobre.setIcon(qta.icon('fa5s.info-circle', color='#FFFFFF'))
         btn_sobre.clicked.connect(self.abrir_dialogo_sobre)
@@ -250,15 +315,12 @@ class JanelaPrincipal(QMainWindow):
         titulo_log = QLabel("Console de Saída")
         titulo_log.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         titulo_log.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         self.console_log = QTextEdit()
         self.console_log.setReadOnly(True)
         self.console_log.setFont(QFont("Consolas", 10))
-
         self.barra_progresso = QProgressBar()
-        self.barra_progresso.setRange(0, 0)  # Modo indeterminado
+        self.barra_progresso.setRange(0, 0)
         self.barra_progresso.setVisible(False)
-
         layout.addWidget(titulo_log)
         layout.addWidget(self.console_log)
         layout.addWidget(self.barra_progresso)
@@ -267,14 +329,15 @@ class JanelaPrincipal(QMainWindow):
     def abrir_dialogo_config(self):
         dialogo = DialogoConfig(self.gerenciador_config, self)
         if dialogo.exec():
-            self.logar_no_console("\n⚙️ Configurações salvas e recarregadas.")
+            self.logar_no_console("\n⚙️ Configurações salvas ou restauradas. Recarregando...")
             self.config = self.gerenciador_config.carregar()
         else:
-            self.logar_no_console("\n❌ Alteração de configurações cancelada.")
+            self.logar_no_console("\n❌ Operação de configurações cancelada.")
     
     def abrir_dialogo_sobre(self):
-        """Cria e exibe a janela 'Sobre'."""
-        dialogo = DialogoSobre(self)
+        caminho_base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+        caminho_logo = os.path.join(caminho_base, "logo.png")
+        dialogo = DialogoSobre(caminho_logo, self)
         dialogo.exec()
 
     def logar_no_console(self, mensagem):
@@ -297,18 +360,15 @@ class JanelaPrincipal(QMainWindow):
         self.console_log.clear()
         nome_tarefa = funcao_tarefa.__name__.replace('_', ' ').title()
         self.logar_no_console(f"🚀 Iniciando: {nome_tarefa}...")
-
         self.thread = QThread()
         self.worker = Worker(funcao_tarefa, *args)
         self.worker.moveToThread(self.thread)
-
         self.thread.started.connect(self.worker.run)
         self.worker.finalizado.connect(self.thread.quit)
         self.worker.finalizado.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.worker.progresso.connect(self.logar_no_console)
         self.thread.finished.connect(self.ao_finalizar_tarefa)
-
         self.thread.start()
 
     def executar_com_confirmacao(self, funcao_tarefa, titulo, texto, *args):

@@ -33,32 +33,31 @@ def e_administrador():
 def obter_stylesheet():
     """Retorna o CSS com o novo tema para estilizar a aplicação."""
     # Paleta de Cores:
-    # Azul Principal: #0072B9
-    # Azul Hover:     #005A9E
-    # Painel Escuro:  #2C3E50
-    # Fundo Claro:    #F5F5F5
-    # Texto Claro:    #ECF0F1
-    # Texto Escuro:   #34495E
-    # Borda:          #BDC3C7
+    # Azul Principal:   #0072B9 | Hover: #005A9E
+    # Verde Destaque:   #27AE60 | Hover: #229954
+    # Painel Escuro:    #2C3E50
+    # Fundo Claro:      #F5F5F5
+    # Texto Claro:      #ECF0F1
+    # Texto Escuro:     #34495E
+    # Borda:            #BDC3C7
     return """
         QMainWindow, QDialog {
-            background-color: #F5F5F5; /* Fundo principal (cinza muito claro) */
+            background-color: #F5F5F5;
         }
         QWidget {
             font-family: "Segoe UI";
-            color: #34495E; /* Cor de texto padrão (cinza escuro azulado) */
+            color: #34495E;
         }
 
-        /* --- PAINEL ESQUERDO --- */
         #PainelEsquerdo {
-            background-color: #F5F5F5; /* Fundo principal (cinza muito claro) */
+            background-color: #F5F5F5;
         }
         #PainelEsquerdo QLabel {
-            color: #34495E; /* Cor de texto padrão (cinza escuro azulado) */
+            color: #34495E;
             font-weight: bold;
         }
 
-        /* --- BOTÕES --- */
+        /* --- BOTÕES PADRÃO --- */
         QPushButton {
             background-color: #0072B9; /* Azul principal */
             color: #FFFFFF;
@@ -75,14 +74,27 @@ def obter_stylesheet():
             background-color: #004578; /* Azul ainda mais escuro ao pressionar */
         }
         QPushButton:disabled {
-            background-color: #95A5A6; /* Cinza para botão desabilitado */
+            background-color: #95A5A6;
             color: #BDC3C7;
+        }
+
+        /* --- NOVO: ESTILO DO BOTÃO DE MANUTENÇÃO PREVENTIVA --- */
+        #BotaoManutencaoPreventiva {
+            background-color: #27AE60; /* Verde para destaque */
+            font-size: 12pt;
+            font-weight: bold;
+        }
+        #BotaoManutencaoPreventiva:hover {
+            background-color: #229954; /* Verde mais escuro no hover */
+        }
+        #BotaoManutencaoPreventiva:pressed {
+            background-color: #1E8449; /* Verde ainda mais escuro ao pressionar */
         }
 
         /* --- PAINEL DIREITO (LOG) --- */
         QTextEdit {
             background-color: #FFFFFF;
-            border: 1px solid #BDC3C7; /* Borda cinza clara */
+            border: 1px solid #BDC3C7;
             color: #34495E;
             font-size: 10pt;
             border-radius: 4px;
@@ -95,7 +107,7 @@ def obter_stylesheet():
             color: #34495E;
         }
         QProgressBar::chunk {
-            background-color: #0072B9; /* Azul da barra de progresso */
+            background-color: #0072B9;
             border-radius: 3px;
         }
 
@@ -107,9 +119,7 @@ def obter_stylesheet():
             border-radius: 4px;
             font-size: 10pt;
         }
-        #LabelLogo {
-            margin-bottom: 10px;
-        }
+        #LabelLogo { margin-bottom: 10px; }
         #LabelTituloSobre {
             font-size: 14pt;
             font-weight: bold;
@@ -117,7 +127,7 @@ def obter_stylesheet():
         }
         #LabelVersaoSobre {
             font-size: 10pt;
-            color: #7F8C8D; /* Cinza mais claro para a versão */
+            color: #7F8C8D;
             margin-bottom: 15px;
         }
     """
