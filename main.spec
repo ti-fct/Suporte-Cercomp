@@ -8,7 +8,7 @@ qta_path = os.path.dirname(qtawesome.__file__)
 block_cipher = None
 
 a = Analysis(['main.py'],
-             pathex=['C:\\dev\\fct-toolkit'], # Coloque o caminho do seu projeto aqui
+             pathex=['C:\\Dev\\Suporte-Cercomp'], # Coloque o caminho do seu projeto aqui
              binaries=[],
              datas=[
                  ('logo.png', '.'), # Adiciona o logo.png
