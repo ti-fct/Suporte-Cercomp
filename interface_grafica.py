@@ -33,7 +33,7 @@ class GerenciadorConfig:
             "CAMINHO_TEMA": os.path.join(DIRETORIO_APP_DATA, "fct-labs.deskthemepack"),
             "CAMINHO_BASE_GPO": DIRETORIO_APP_DATA,
             "URL_BLEACHBIT": "https://download.bleachbit.org/BleachBit-5.0.0-portable.zip",
-            "URL_REPOSITORIO_FCT": "https://github.com/SEU_USUARIO/SEU_REPOSITORIO/releases/download/v1.0/"
+            "URL_REPOSITORIO_FCT": "https://github.com/ti-fct/Suporte-Cercomp/releases/download/2.2/"
         }
 
     def carregar(self):
