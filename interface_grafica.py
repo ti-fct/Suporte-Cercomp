@@ -126,7 +126,6 @@ class DialogoConfig(QDialog):
             QMessageBox.information(self, "Sucesso", "As configurações foram restauradas para o padrão.")
 
 
-# --- Janela "Sobre" (sem alterações) ---
 class DialogoSobre(QDialog):
     """Janela de diálogo com informações sobre a aplicação."""
     def __init__(self, caminho_logo,parent=None):
@@ -150,7 +149,7 @@ class DialogoSobre(QDialog):
         titulo.setObjectName("LabelTituloSobre")
         layout.addWidget(titulo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        versao = QLabel("Versão 2.3 (Corrigida)") # Versão atualizada
+        versao = QLabel("Versão 3.0") 
         versao.setObjectName("LabelVersaoSobre")
         layout.addWidget(versao, alignment=Qt.AlignmentFlag.AlignCenter)
         

@@ -8,6 +8,7 @@ import zipfile
 import winreg
 import sys
 import time
+import ctypes
 
 # --- Constantes de Configuração ---
 DIRETORIO_APP_DATA = r"C:\ProgramData\Suporte-Cercomp"
@@ -223,43 +224,164 @@ def gerenciar_widget_desktop(acao, config):
             except OSError as e: yield f"ERRO ao remover diretório do widget: {e}"
         yield "Widget removido com sucesso."
 
-def garantir_permissoes_de_tema():
-    """Verifica e remove explicitamente a política de restrição de temas no Registro do Windows."""
-    yield "Verificando permissões de alteração de tema no Registro..."
-    chave_reg_caminho = r"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer"
-    nome_valor = "NoThemes"
-    try:
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, chave_reg_caminho, 0, winreg.KEY_SET_VALUE) as key:
-            try:
-                winreg.DeleteValue(key, nome_valor)
-                yield f"Política de bloqueio de tema encontrada e removida do Registro (HKLM)."
-            except FileNotFoundError:
-                yield f"Nenhuma política de bloqueio de tema encontrada no Registro (HKLM)."
-            except Exception as e_del:
-                yield f"AVISO: Não foi possível remover a chave '{nome_valor}' do Registro (HKLM): {e_del}"
-    except FileNotFoundError:
-        yield "Caminho de política de tema não existe no Registro (HKLM), o que é bom."
-    except Exception as e_open:
-        yield f"ERRO ao acessar o Registro (HKLM) para verificar políticas de tema: {e_open}"
-
 def aplicar_tema_fct(caminho_tema):
-    """Aplica o tema visual da FCT delegando a ação para o shell do usuário (explorer.exe)."""
-    yield from garantir_permissoes_de_tema()
-    yield f"Verificando tema em: {caminho_tema}"
+    """
+    Versão alternativa que aplica o tema usando múltiplas estratégias
+    para detectar o usuário logado.
+    """
+    yield "Iniciando aplicação de tema (método alternativo)..."
+
+    # Verificar privilégios de Administrador
+    try:
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin()
+        if not is_admin:
+            yield "ERRO CRÍTICO: Esta função requer privilégios de Administrador."
+            return
+        yield "Verificação de privilégios de Administrador: OK."
+    except Exception as e:
+        yield f"ERRO ao verificar privilégios de Administrador: {e}"
+        return
+
+    # Validação do arquivo de tema
     if not os.path.exists(caminho_tema):
         yield f"ERRO: Arquivo de tema não encontrado: {caminho_tema}."
-        yield "Dica: Use a opção 'Baixar Recursos FCT' para obter os arquivos necessários."
         return
+    yield f"Arquivo de tema encontrado: {os.path.basename(caminho_tema)}"
+
+    # Múltiplas estratégias para obter usuário logado
+    usuario_logado = None
+    
+    # Estratégia 1: Win32_ComputerSystem
     try:
-        comando = f'explorer.exe "{caminho_tema}"'
-        yield f"Enviando comando de aplicação de tema ao shell do usuário: {comando}"
-        subprocess.run(
-            comando, shell=True, check=False, creationflags=subprocess.CREATE_NO_WINDOW
+        yield "Tentativa 1: Obtendo usuário via Win32_ComputerSystem..."
+        comando_ps1 = "(Get-CimInstance -ClassName Win32_ComputerSystem).Username"
+        processo1 = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", comando_ps1],
+            capture_output=True, text=True, encoding='utf-8',
+            creationflags=subprocess.CREATE_NO_WINDOW, timeout=30
         )
-        yield "Comando para aplicar o tema foi enviado com sucesso."
-        yield "A alteração pode levar alguns segundos e pode exigir confirmação do usuário."
+        if processo1.stdout and processo1.stdout.strip():
+            usuario_logado = processo1.stdout.strip()
+            yield f"✓ Usuário encontrado (Método 1): {usuario_logado}"
     except Exception as e:
-        yield f"ERRO CRÍTICO ao tentar aplicar o tema via explorer: {e}"
+        yield f"Método 1 falhou: {e}"
+
+    # Estratégia 2: query user
+    if not usuario_logado:
+        try:
+            yield "Tentativa 2: Obtendo usuário via 'query user'..."
+            processo2 = subprocess.run(
+                ["query", "user"],
+                capture_output=True, text=True, encoding='oem',
+                creationflags=subprocess.CREATE_NO_WINDOW, timeout=30
+            )
+            if processo2.stdout:
+                linhas = processo2.stdout.strip().split('\n')
+                for linha in linhas[1:]:  # Pular cabeçalho
+                    if 'Active' in linha or 'Ativo' in linha:
+                        partes = linha.split()
+                        if len(partes) > 0:
+                            usuario_logado = partes[0]
+                            yield f"✓ Usuário encontrado (Método 2): {usuario_logado}"
+                            break
+        except Exception as e:
+            yield f"Método 2 falhou: {e}"
+
+    # Estratégia 3: whoami
+    if not usuario_logado:
+        try:
+            yield "Tentativa 3: Obtendo usuário via 'whoami'..."
+            processo3 = subprocess.run(
+                ["whoami"],
+                capture_output=True, text=True, encoding='oem',
+                creationflags=subprocess.CREATE_NO_WINDOW, timeout=30
+            )
+            if processo3.stdout and processo3.stdout.strip():
+                whoami_result = processo3.stdout.strip()
+                if '\\' in whoami_result:
+                    usuario_logado = whoami_result.split('\\')[-1]
+                    yield f"✓ Usuário encontrado (Método 3): {usuario_logado}"
+        except Exception as e:
+            yield f"Método 3 falhou: {e}"
+
+    # Estratégia 4: Variável de ambiente
+    if not usuario_logado:
+        try:
+            yield "Tentativa 4: Obtendo usuário via variável de ambiente..."
+            usuario_env = os.environ.get('USERNAME')
+            if usuario_env:
+                usuario_logado = usuario_env
+                yield f"✓ Usuário encontrado (Método 4): {usuario_logado}"
+        except Exception as e:
+            yield f"Método 4 falhou: {e}"
+
+    # Verificar se encontrou usuário
+    if not usuario_logado:
+        yield "AVISO: Não foi possível determinar o usuário logado."
+        yield "Tentando aplicar tema sem contexto específico de usuário..."
+        
+        # Aplicar tema sem usuário específico
+        try:
+            yield "Aplicando tema diretamente..."
+            subprocess.Popen([caminho_tema], shell=True)
+            yield "Tema aplicado! A janela de personalização deve abrir."
+            return
+        except Exception as e:
+            yield f"ERRO ao aplicar tema: {e}"
+            return
+
+    # Aplicar tema com usuário específico
+    yield f"Aplicando tema para o usuário: {usuario_logado}..."
+    
+    # Script PowerShell mais robusto
+    script_aplicar = f"""
+    try {{
+        # Múltiplas tentativas de aplicação
+        $CaminhoTema = '{caminho_tema.replace("'", "''")}'
+
+        Write-Output "Aguardando 5 segundos antes de aplicar..."
+        Start-Sleep -Seconds 5
+        
+        # Método 1: Start-Process simples
+        try {{
+            $ProcessInfo = Start-Process -FilePath 'explorer.exe' -ArgumentList "`"$CaminhoTema`"" -PassThru -ErrorAction Stop
+            Write-Output "✓ Tema aplicado via Start-Process. PID: $($ProcessInfo.Id)"
+        }} catch {{
+            Write-Warning "Start-Process falhou: $($_.Exception.Message)"
+            
+            # Método 2: Invoke-Item
+            try {{
+                Invoke-Item -Path $CaminhoTema -ErrorAction Stop
+                Write-Output "✓ Tema aplicado via Invoke-Item"
+            }} catch {{
+                Write-Warning "Invoke-Item falhou: $($_.Exception.Message)"
+                
+                # Método 3: cmd /c start
+                try {{
+                    cmd /c start `"Aplicar Tema`" `"$CaminhoTema`"
+                    Write-Output "✓ Tema aplicado via cmd start"
+                }} catch {{
+                    Write-Error "Todos os métodos falharam: $($_.Exception.Message)"
+                    exit 1
+                }}
+            }}
+        }}
+
+        Write-Output "Aguardando 7 segundos para o sistema processar o tema..."
+        Start-Sleep -Seconds 7
+
+    }} catch {{
+        Write-Error "ERRO CRÍTICO ao aplicar tema: $($_.Exception.Message)"
+        exit 1
+    }}
+    """
+    
+    resultado = list(executar_comando_powershell(script_aplicar))
+    for linha in resultado:
+        yield linha
+
+    yield "Aplicação de tema concluída."
+    yield "Se a janela 'Personalização' abrir, pode fechá-la."
 
 def aplicar_gpos_fct(caminho_base_gpo):
     """Aplica as políticas de grupo (GPOs) da FCT usando lgpo.exe."""
