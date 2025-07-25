@@ -135,8 +135,9 @@ def obter_stylesheet():
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == '__main__':
     if not e_administrador():
+        # Inicializa uma app temporária apenas para mostrar o QMessageBox
         app_temp = QApplication(sys.argv)
-        QMessageBox.critical(None, "Erro de Permissão", "Esta aplicação precisa ser executada como Administrador.")
+        QMessageBox.critical(None, "Erro de Permissão", "Esta aplicação precisa ser executada como Administrador para funcionar corretamente.")
         sys.exit(1)
 
     configurar_ambiente()
