@@ -1,8 +1,6 @@
 # 🛠️ Ferramenta de Manutenção FCT/UFG
 
 ![PyQt6](https://img.shields.io/badge/framework-PyQt6-blue)
-![versão](https://img.shields.io/badge/versão-2.1-success)
-![licença](https://img.shields.io/badge/licença-MIT-green)
 ![plataforma](https://img.shields.io/badge/plataforma-Windows-lightgrey)
 
 Ferramenta de manutenção desenvolvida para os laboratórios de informática da FCT/UFG. Automatiza tarefas administrativas em máquinas Windows, com foco em padronização, segurança e agilidade na gestão.
