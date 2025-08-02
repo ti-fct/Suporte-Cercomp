@@ -1,0 +1,9 @@
+# requirements.txt
+
+# Dependências da aplicação
+PyQt6
+qtawesome
+requests
+
+# Dependência para a construção
+pyinstaller

@@ -68,24 +68,19 @@ pip install pyinstaller
 ### 2. Gere o executável
 
 ```bash
-pyinstaller main.py --name "Suporte-Cercomp-FCT" --onefile --noconsole --icon=icone.ico --hidden-import=qtawesome
+pyinstaller main.py --name "Suporte-Cercomp-FCT" --onefile --noconsole --icon=assets/icone.ico --add-data="assets;assets" --hidden-import=qtawesome
 ```
 
 - `--onefile`: gera um único `.exe`
-- `--noconsole`: oculta o terminal (aplicações GUI)
-- `--icon`: define o ícone (opcional)
-- `--hidden-import=qtawesome`: necessário para importar corretamente os ícones
+- `--noconsole`: oculta o terminal (para aplicações GUI)
+- `--icon=assets/icone.ico`: define o ícone (caminho atualizado)
+- `--add-data="assets;assets"`: **ESSENCIAL**. Inclui todos os arquivos da pasta `assets` (como o `logo.png`) no executável.
+- `--hidden-import=qtawesome`: necessário para importar corretamente os ícones da biblioteca.
 
 ### 3. Arquivos gerados:
 
-- Executável estará em: `dist/Suporte-Cercomp-FCT.exe`
-- Outras pastas (`build/`, `__pycache__/`, etc.) podem ser descartadas
-
----
-
-## 📝 Licença
-
-Este projeto está licenciado sob a Licença  - consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
+- O executável estará em: `dist/Suporte-Cercomp-FCT.exe`
+- As pastas `build/` e o arquivo `.spec` podem ser descartados após a compilação.
 
 ---
 
