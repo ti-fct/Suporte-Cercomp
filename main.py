@@ -50,10 +50,11 @@ def obter_stylesheet():
         }
 
         #PainelEsquerdo {
-            background-color: #F5F5F5;
+            background-color: #2C3E50; /* Cor de fundo escura para o painel */
         }
+        
         #PainelEsquerdo QLabel {
-            color: #34495E;
+            color: #ECF0F1; /* Texto claro para os títulos no painel esquerdo */
             font-weight: bold;
         }
 
@@ -62,9 +63,9 @@ def obter_stylesheet():
             background-color: #0072B9; /* Azul principal */
             color: #FFFFFF;
             border: none;
-            padding: 10px;
+            padding: 8px; /* Reduzido um pouco o padding para dar mais espaço */
             text-align: left;
-            font-size: 11pt;
+            font-size: 10pt; /* Reduzido um pouco a fonte */
             border-radius: 4px;
         }
         QPushButton:hover {
@@ -78,10 +79,10 @@ def obter_stylesheet():
             color: #BDC3C7;
         }
 
-        /* --- NOVO: ESTILO DO BOTÃO DE MANUTENÇÃO PREVENTIVA --- */
+        /* --- ESTILO DO BOTÃO DE MANUTENÇÃO PREVENTIVA --- */
         #BotaoManutencaoPreventiva {
             background-color: #27AE60; /* Verde para destaque */
-            font-size: 12pt;
+            font-size: 11pt; /* Mantém a fonte maior para o botão principal */
             font-weight: bold;
         }
         #BotaoManutencaoPreventiva:hover {
@@ -130,6 +131,19 @@ def obter_stylesheet():
             color: #7F8C8D;
             margin-bottom: 15px;
         }
+        
+        /* NOVO: Estilo para a Área de Rolagem e seu conteúdo */
+        QScrollArea {
+            border: none;
+            background-color: transparent;
+        }
+        /* O #ScrollAreaContainer é o QWidget que está DENTRO da QScrollArea */
+        #ScrollAreaContainer {
+            background-color: #F5F5F5;
+        }
+        #ScrollAreaContainer QLabel {
+            color: #34495E; /* Garante que os títulos dentro da rolagem usem a cor correta */
+        }
     """
 
 # --- Ponto de Entrada da Aplicação ---
@@ -146,6 +160,17 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setStyleSheet(obter_stylesheet())
 
+    # --- LÓGICA DE TAMANHO RESPONSIVO ---
     janela = JanelaPrincipal()
+    
+    # Obtém a geometria da tela principal
+    screen = app.primaryScreen()
+    if screen:
+        available_geometry = screen.availableGeometry()
+        # Define o tamanho da janela como uma porcentagem do espaço disponível
+        janela.resize(int(available_geometry.width() * 0.8), int(available_geometry.height() * 0.9))
+        # Define um tamanho mínimo para evitar que a janela fique inútil
+        janela.setMinimumSize(800, 600)
+    
     janela.show()
     sys.exit(app.exec())

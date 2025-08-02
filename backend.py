@@ -19,7 +19,7 @@ DIRETORIO_PYTHON_WIDGET = os.path.join(DIRETORIO_APP_DATA, "python_widget_env")
 REGISTRO_WIDGET = r"Software\Microsoft\Windows\CurrentVersion\Run"
 CHAVE_REGISTRO_WIDGET = "FCT_UFG_DesktopInfo"
 
-# Conteúdo do script do widget (sem alterações)
+# ... (O CONTEUDO_SCRIPT_WIDGET permanece o mesmo) ...
 CONTEUDO_SCRIPT_WIDGET = """
 # Aviso Desktop
 import sys
@@ -143,6 +143,51 @@ def executar_comando_cmd(comando, timeout=180, work_dir=None):
     except Exception as e:
         yield f"ERRO CRÍTICO (CMD): {e}"
 
+def _obter_caminho_desktop_usuario():
+    """Função auxiliar para obter o usuário e o caminho do desktop."""
+    usuario = os.environ.get('USERNAME')
+    if not usuario:
+        return None, None, "ERRO CRÍTICO: Não foi possível obter o nome de usuário do sistema."
+    
+    caminho_desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    if not os.path.exists(caminho_desktop):
+        return None, None, f"ERRO CRÍTICO: O diretório do Desktop não foi encontrado em '{caminho_desktop}'."
+    
+    return usuario, caminho_desktop, None
+
+def habilitar_escrita_desktop():
+    """Concede permissão de escrita para o usuário atual em sua Área de Trabalho."""
+    yield "--- Habilitando Permissão de Escrita no Desktop ---"
+    usuario, caminho_desktop, erro = _obter_caminho_desktop_usuario()
+    if erro:
+        yield erro
+        return
+
+    yield f"Concedendo permissão total para o usuário '{usuario}' em '{caminho_desktop}'..."
+    # /grant concede permissões. (F) é Full Control.
+    # /T opera em subdiretórios. /C continua mesmo que ocorram erros em alguns arquivos.
+    comando = f'icacls "{caminho_desktop}" /grant "{usuario}":(F) /T /C'
+    yield from executar_comando_cmd(comando)
+    yield "Permissão de escrita no Desktop foi HABILITADA."
+    yield "Pode ser necessário reiniciar o Explorer para o efeito ser completo."
+
+def desabilitar_escrita_desktop():
+    """Remove permissão de escrita para o usuário atual em sua Área de Trabalho."""
+    yield "--- Desabilitando Permissão de Escrita no Desktop ---"
+    usuario, caminho_desktop, erro = _obter_caminho_desktop_usuario()
+    if erro:
+        yield erro
+        return
+
+    yield f"Negando permissão de escrita para o usuário '{usuario}' em '{caminho_desktop}'..."
+    # /deny nega permissões. (W) é Write, (DC) é Delete Child.
+    comando = f'icacls "{caminho_desktop}" /deny "{usuario}":(W,DC) /T /C'
+    yield from executar_comando_cmd(comando)
+    yield "Permissão de escrita no Desktop foi DESABILITADA."
+    yield "Pode ser necessário reiniciar o Explorer para o efeito ser completo."
+
+
+# ... (O resto das funções de backend como 'aplicar_tema_fct', 'limpar_pastas_usuario', etc. permanecem inalteradas) ...
 def baixar_recursos_necessarios(url_repositorio):
     """Baixa os arquivos de configuração (GPOs, Tema) do GitHub."""
     arquivos_para_baixar = ["lgpo.exe", "machine.txt", "user.txt", "fct-labs.deskthemepack"]
@@ -548,7 +593,7 @@ def limpar_pastas_usuario():
         # Garante que o arquivo temporário seja sempre removido
         if os.path.exists(temp_file):
             os.remove(temp_file)
-
+            
 def manutencao_preventiva_1_click(config):
     """Executa uma sequência de tarefas de manutenção preventiva."""
     yield "--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---"
