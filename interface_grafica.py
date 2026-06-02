@@ -22,12 +22,12 @@ from backend import (
     restaurar_gpos_padrao, forcar_atualizacao_gpos, resetar_microsoft_store,
     iniciar_limpeza_sistema, gerenciar_widget_desktop,
     manutencao_preventiva_1_click, baixar_recursos_necessarios,
-    habilitar_escrita_desktop, desabilitar_escrita_desktop
+    habilitar_escrita_desktop, desabilitar_escrita_desktop, ajustar_melhor_desempenho
 )
 
 # Constante com a versão atual do software
 # Alterar sempre que lançar uma nova versão
-APP_VERSION = "3.1.0" 
+APP_VERSION = "3.2.0" 
 
 class GerenciadorConfig:
     """Carrega e salva as configurações da aplicação em um arquivo JSON."""
@@ -265,6 +265,7 @@ class JanelaPrincipal(QMainWindow):
             ("Restaurar GPOs Padrão", 'fa5s.undo-alt', lambda: self.executar_com_confirmacao(restaurar_gpos_padrao, "Restaurar GPOs?", "Isso removerá todas as políticas locais.")),
             ("Forçar Atualização de GPOs", 'fa5s.sync-alt', lambda: self.executar_tarefa(forcar_atualizacao_gpos)),
             ("Resetar Microsoft Store", 'fa5s.store-alt', lambda: self.executar_tarefa(resetar_microsoft_store)),
+            ("Ajustar Melhor Desempenho", 'fa5s.cogs', lambda: self.executar_tarefa(ajustar_melhor_desempenho)),
             ("Limpeza Geral do Sistema", 'fa5s.broom', lambda: self.executar_tarefa(iniciar_limpeza_sistema, self.config['URL_BLEACHBIT'])),
         ]
         self.botoes_acao = [btn_manutencao_completa]

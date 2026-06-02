@@ -520,6 +520,15 @@ def resetar_microsoft_store():
     yield from executar_comando_powershell(comando)
     yield "Comando de re-registro enviado."
 
+def ajustar_melhor_desempenho():
+    """Habilitar a opção Ajustar para obter o melhor desempenho dentro de configurações avançadas."""
+    yield "Iniciando ajuste para melhor desempenho..."
+    comando = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name VisualFXSetting -Value 2"""
+    yield from executar_comando_powershell(comando)
+    yield "Comando de melhorar desempenho enviado."
+    yield "Confira nas configurações avançadas."
+    yield from executar_comando_cmd("sysdm.cpl ,3", timeout=120)
+
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
     yield "Forçando atualização das Políticas de Grupo (GPOs)..."
@@ -597,23 +606,25 @@ def limpar_pastas_usuario():
 def manutencao_preventiva_1_click(config):
     """Executa uma sequência de tarefas de manutenção preventiva."""
     yield "--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---"
-    yield "\nPASSO 1/9: Baixando recursos da FCT..."
+    yield "\nPASSO 1/10: Baixando recursos da FCT..."
     yield from baixar_recursos_necessarios(config['URL_REPOSITORIO_FCT'])
-    yield "\nPASSO 2/9: Restaurando GPOs Padrão..."
+    yield "\nPASSO 2/10: Restaurando GPOs Padrão..."
     yield from restaurar_gpos_padrao()
-    yield "\nPASSO 3/9: Forçando Atualização de GPOs..."
+    yield "\nPASSO 3/10: Forçando Atualização de GPOs..."
     yield from forcar_atualizacao_gpos()
-    yield "\nPASSO 4/9: Limpeza Geral do Sistema..."
+    yield "\nPASSO 4/10: Limpeza Geral do Sistema..."
     yield from iniciar_limpeza_sistema(config['URL_BLEACHBIT'])
-    yield "\nPASSO 5/9: Limpando pastas do Usuário..."
+    yield "\nPASSO 5/10: Limpando pastas do Usuário..."
     yield from limpar_pastas_usuario()
-    yield "\nPASSO 6/9: Aplicando Tema Visual da FCT..."
+    yield "\nPASSO 6/10: Aplicando Tema Visual da FCT..."
     yield from aplicar_tema_fct(config['CAMINHO_TEMA'])
-    yield "\nPASSO 7/9: Aplicando GPOs da FCT..."
+    yield "\nPASSO 7/10: Aplicando GPOs da FCT..."
     yield from aplicar_gpos_fct(config['CAMINHO_BASE_GPO'])
-    yield "\nPASSO 8/9: Forçando atualização de GPO novamente..."
+    yield "\nPASSO 8/10: Forçando atualização de GPO novamente..."
     yield from forcar_atualizacao_gpos()
-    yield "\nPASSO 9/9: Resetando a Microsoft Store..."
+    yield "\nPASSO 9/10: Resetando a Microsoft Store..."
     yield from resetar_microsoft_store()
+    yield "\nPASSO 10/10: Habilitando ajuste de desempenho..."
+    yield from ajustar_melhor_desempenho()
     yield "\n--- MANUTENÇÃO PREVENTIVA CONCLUÍDA ---"
     yield "É recomendado reiniciar o computador para que todas as alterações tenham efeito."
