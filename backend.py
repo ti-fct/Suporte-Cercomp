@@ -533,6 +533,11 @@ def ajustar_melhor_desempenho():
     yield from executar_comando_cmd("sysdm.cpl ,3", timeout=120)
     yield "Limpando o cache DNS."
     yield from executar_comando_cmd("ipconfig /flushdns", timeout=120)
+
+    yield "Desativando tela de boas-vindas..."
+    comandoDesativarBoasVindas = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name SubscribedContent-310093Enabled -Value 0"""
+    yield from executar_comando_powershell(comandoDesativarBoasVindas)
+    
     yield "Desativando serviços do Xbox..."
     comandos_xbox = [
         r'Stop-Service -Name "XboxGipSvc" -Force',
