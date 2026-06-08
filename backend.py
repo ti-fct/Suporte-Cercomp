@@ -561,6 +561,7 @@ def ajustar_melhor_desempenho():
     yield "Desativando serviços adicionais..."
     comandos_servicos = [
         r'Stop-Service -Name "WpcSvc" -Force',          # Controle dos Pais
+        r'Stop-Service -Name "WpcMonSvc" -Force',       # Controle dos Pais depende da versão do windows
         r'Stop-Service -Name "DiagTrack" -Force',       # Telemetria
         r'Stop-Service -Name "DusmSvc" -Force',         # Experiências do Usuário Conectado
         r'Stop-Service -Name "GameInputSvc" -Force',    # GameInput
@@ -574,6 +575,7 @@ def ajustar_melhor_desempenho():
         r'Stop-Service -Name "PhoneSvc" -Force',        # Telefonia
         r'Stop-Service -Name "SysMain" -Force',         # SysMain
         r'Set-Service -Name "WpcSvc" -StartupType Disabled',
+        r'Set-Service -Name "WpcMonSvc" -StartupType Disabled',
         r'Set-Service -Name "DiagTrack" -StartupType Disabled',
         r'Set-Service -Name "DusmSvc" -StartupType Disabled',
         r'Set-Service -Name "GameInputSvc" -StartupType Disabled',

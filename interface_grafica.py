@@ -168,7 +168,8 @@ class DialogoSobre(QDialog):
         titulo.setObjectName("LabelTituloSobre")
         layout.addWidget(titulo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        versao = QLabel(f"Versão {APP_VERSION}") 
+        versao = QLabel(f'<a href="https://github.com/ti-fct/Suporte-Cercomp">{APP_VERSION}</a>')
+        versao.setOpenExternalLinks(True)
         versao.setObjectName("LabelVersaoSobre")
         layout.addWidget(versao, alignment=Qt.AlignmentFlag.AlignCenter)
         
