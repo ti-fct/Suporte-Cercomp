@@ -6,6 +6,8 @@ import os
 import json
 import sys
 
+from PyQt6 import QtGui
+import PyQt6
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QTextEdit, QLabel, QProgressBar, QMessageBox, QInputDialog, QDialog,
@@ -218,8 +220,11 @@ class JanelaPrincipal(QMainWindow):
         self.logar_no_console("Selecione uma ação no menu à esquerda.")
 
     def inicializar_ui(self):
+        caminho_base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+        caminho_icone = os.path.join(caminho_base, "assets", "icone.ico")
         self.setWindowTitle("Ferramenta de Manutenção FCT/UFG")
-        self.setWindowIcon(qta.icon('fa5s.tools', color='#FFFFFF'))
+        #self.setWindowIcon(qta.icon('fa5s.tools', color='#FFFFFF'))
+        self.setWindowIcon(PyQt6.QtGui.QIcon(caminho_icone))
         widget_central = QWidget()
         self.setCentralWidget(widget_central)
         layout_principal = QHBoxLayout(widget_central)
