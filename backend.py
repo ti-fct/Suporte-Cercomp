@@ -479,6 +479,9 @@ def iniciar_limpeza_sistema(url_ferramenta):
         cleaners_to_run = [c for c in all_cleaners if not c.startswith("deep_scan.") and c != "system.free_disk_space"]
         yield f"{len(cleaners_to_run)} limpadores selecionados. AVISO: A limpeza pode demorar."
         yield "Executando limpeza com BleachBit..."
+        yield "Apagando arquivos da pasta Music..."
+        comandoLimparPastaMusic = r"""Remove-Item -Path "C:\Users\Aluno\Music\*" -Recurse -Force -ErrorAction SilentlyContinue"""
+        yield from executar_comando_powershell(comandoLimparPastaMusic)
         subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
         yield "Limpeza completa concluída!"
     except Exception as e:
@@ -521,13 +524,30 @@ def resetar_microsoft_store():
     yield "Comando de re-registro enviado."
 
 def ajustar_melhor_desempenho():
-    """Habilitar a opção Ajustar para obter o melhor desempenho dentro de configurações avançadas."""
+    """Habilitar a opção Ajustar para obter o melhor desempenho dentro de configurações avançadas e desativar serviços do Xbox."""
     yield "Iniciando ajuste para melhor desempenho..."
     comando = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name VisualFXSetting -Value 2"""
     yield from executar_comando_powershell(comando)
     yield "Comando de melhorar desempenho enviado."
     yield "Confira nas configurações avançadas."
     yield from executar_comando_cmd("sysdm.cpl ,3", timeout=120)
+    yield "Limpando o cache DNS."
+    yield from executar_comando_cmd("ipconfig /flushdns", timeout=120)
+    yield "Desativando serviços do Xbox..."
+    comandos_xbox = [
+        r'Stop-Service -Name "XboxGipSvc" -Force',
+        r'Stop-Service -Name "XboxNetApiSvc" -Force',
+        r'Stop-Service -Name "XblAuthManager" -Force',
+        r'Stop-Service -Name "XblGameSave" -Force',
+        r'Set-Service -Name "XboxGipSvc" -StartupType Disabled',
+        r'Set-Service -Name "XboxNetApiSvc" -StartupType Disabled',
+        r'Set-Service -Name "XblAuthManager" -StartupType Disabled',
+        r'Set-Service -Name "XblGameSave" -StartupType Disabled'
+    ]
+    for cmd in comandos_xbox:
+        yield from executar_comando_powershell(cmd)
+
+    yield "Serviços do Xbox desativados com sucesso."
 
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
