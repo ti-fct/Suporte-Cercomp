@@ -558,6 +558,41 @@ def ajustar_melhor_desempenho():
 
     yield "Serviços do Xbox desativados com sucesso."
 
+    yield "Desativando serviços adicionais..."
+    comandos_servicos = [
+        r'Stop-Service -Name "WpcSvc" -Force',          # Controle dos Pais
+        r'Stop-Service -Name "DiagTrack" -Force',       # Telemetria
+        r'Stop-Service -Name "DusmSvc" -Force',         # Experiências do Usuário Conectado
+        r'Stop-Service -Name "GameInputSvc" -Force',    # GameInput
+        r'Stop-Service -Name "ScPolicySvc" -Force',     # Política de Remoção de Cartão Inteligente
+        r'Stop-Service -Name "WbioSrvc" -Force',        # Biometria
+        r'Stop-Service -Name "BDESVC" -Force',          # BitLocker
+        r'Stop-Service -Name "SCardSvr" -Force',        # Cartão Inteligente
+        r'Stop-Service -Name "icssvc" -Force',          # Hotspot Móvel
+        r'Stop-Service -Name "WerSvc" -Force',          # Relatórios de Erro
+        r'Stop-Service -Name "SensorService" -Force',   # Sensor
+        r'Stop-Service -Name "PhoneSvc" -Force',        # Telefonia
+        r'Stop-Service -Name "SysMain" -Force',         # SysMain
+        r'Set-Service -Name "WpcSvc" -StartupType Disabled',
+        r'Set-Service -Name "DiagTrack" -StartupType Disabled',
+        r'Set-Service -Name "DusmSvc" -StartupType Disabled',
+        r'Set-Service -Name "GameInputSvc" -StartupType Disabled',
+        r'Set-Service -Name "ScPolicySvc" -StartupType Disabled',
+        r'Set-Service -Name "WbioSrvc" -StartupType Disabled',
+        r'Set-Service -Name "BDESVC" -StartupType Disabled',
+        r'Set-Service -Name "SCardSvr" -StartupType Disabled',
+        r'Set-Service -Name "icssvc" -StartupType Disabled',
+        r'Set-Service -Name "WerSvc" -StartupType Disabled',
+        r'Set-Service -Name "SensorService" -StartupType Disabled',
+        r'Set-Service -Name "PhoneSvc" -StartupType Disabled',
+        r'Set-Service -Name "SysMain" -StartupType Disabled'
+    ]
+    for cmd in comandos_servicos:
+        yield from executar_comando_powershell(cmd)
+
+    yield "Todos os serviços adicionais foram desativados com sucesso."
+
+
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
     yield "Forçando atualização das Políticas de Grupo (GPOs)..."
