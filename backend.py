@@ -432,6 +432,13 @@ def aplicar_tema_fct(caminho_tema):
     comandoDesativarLuzNoturna = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount\$$windows.data.bluelightreduction.bluelightreductionstate" -Name Data -Value 0"""
     yield from executar_comando_powershell(comandoDesativarLuzNoturna)
 
+    yield "Definindo wallpaper para 'Ajustar'..."
+    comandoWallpaperAjustar = r"""
+    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallpaperStyle -Value 6
+    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name TileWallpaper -Value 0
+    """
+    yield from executar_comando_powershell(comandoWallpaperAjustar)
+
 def aplicar_gpos_fct(caminho_base_gpo):
     """Aplica as políticas de grupo (GPOs) da FCT usando lgpo.exe."""
     arquivos_necessarios = [
