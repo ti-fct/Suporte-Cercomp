@@ -1,12 +1,9 @@
-# backend.py
 import os
 import subprocess
 import shutil
-import json
 import requests
 import zipfile
 import winreg
-import sys
 import time
 import ctypes
 
@@ -104,8 +101,6 @@ if __name__ == "__main__":
     sys.exit(app.exec())
 """
 
-# --- Funções Lógicas ---
-
 def executar_comando_powershell(comando, timeout=180):
     """Executa um comando PowerShell."""
     yield f"Executando via PowerShell: {comando[:70]}..."
@@ -194,12 +189,12 @@ def reiniciar_explorer():
     yield "Reiniciando parâmetros do sistema..."
     yield from executar_comando_powershell(f"RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters ,1 ,True")
     yield "Reiniciando o Windows Explorer..."
-    yield from executar_comando_cmd(f"taskkill /F /IM explorer.exe")
+    yield from executar_comando_cmd(r"taskkill /F /IM explorer.exe")
     time.sleep(2)  # Pequena pausa para garantir que o processo foi encerrado
-    yield from executar_comando_cmd(f"start explorer.exe")
-    yield from executar_comando_powershell(f"Stop-Process -Name explorer -Force; Start-Process explorer")
+    yield from executar_comando_cmd(r"start explorer.exe")
+    yield from executar_comando_powershell(r"Stop-Process -Name explorer -Force; Start-Process explorer")
     yield "Windows Explorer reiniciado com sucesso."
-    yield from executar_comando_cmd(f"gpupdate /force", timeout=300)
+    yield from executar_comando_cmd(r"gpupdate /force", timeout=300)
     yield "Atualização de políticas forçada."
 
 def habilitar_escrita_desktop():
@@ -247,7 +242,6 @@ def desabilitar_escrita_desktop():
     yield "Contas de administrador não foram alteradas e permanecem com escrita habilitada."
     yield from reiniciar_explorer()
 
-# ... (O resto das funções de backend como 'aplicar_tema_fct', 'limpar_pastas_usuario', etc. permanecem inalteradas) ...
 def baixar_recursos_necessarios(url_repositorio):
     """Baixa os arquivos de configuração (GPOs, Tema) do GitHub."""
     arquivos_para_baixar = ["lgpo.exe", "machine.txt", "user.txt", "fct-labs.deskthemepack"]
@@ -490,7 +484,7 @@ def aplicar_tema_fct(caminho_tema):
     }}
     """
     
-    resultado = list(executar_comando_powershell(script_aplicar))
+    resultado = list(executar_comando_powershell(script_aplicar,timeout=600))
     for linha in resultado:
         yield linha
 
@@ -506,10 +500,7 @@ def aplicar_tema_fct(caminho_tema):
     yield from executar_comando_powershell(comandoDesativarLuzNoturna)
 
     yield "Definindo wallpaper para 'Ajustar'..."
-    comandoWallpaperAjustar = r"""
-    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WallpaperStyle -Value 6
-    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name TileWallpaper -Value 0
-    """
+    comandoWallpaperAjustar = "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name WallpaperStyle -Value 6; Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name TileWallpaper -Value 0"
     yield from executar_comando_powershell(comandoWallpaperAjustar)
 
 def aplicar_gpos_fct(caminho_base_gpo):
@@ -537,7 +528,6 @@ def aplicar_gpos_fct(caminho_base_gpo):
     finally:
         os.chdir(diretorio_original)
 
-# CORRIGIDO: BleachBit agora é salvo em ProgramData
 def iniciar_limpeza_sistema(url_ferramenta):
     """Baixa e executa o BleachBit para limpeza geral do sistema."""
     # O diretório base agora é o mesmo da aplicação
@@ -614,7 +604,7 @@ def ajustar_melhor_desempenho():
     yield "Comando de melhorar desempenho enviado."
     yield "Confira nas configurações avançadas."
     yield from executar_comando_cmd(r"sysdm.cpl ,3", timeout=120)
-    
+
     yield "Limpando o cache DNS."
     yield from executar_comando_cmd(r"ipconfig /flushdns", timeout=120)
 
@@ -700,14 +690,12 @@ def ajustar_melhor_desempenho():
 
     yield "Todos os serviços adicionais foram desativados com sucesso."
 
-
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
     yield "Forçando atualização das Políticas de Grupo (GPOs)..."
     yield from executar_comando_cmd("gpupdate /force", timeout=300)
     yield "Tentativa de atualização de GPO concluída."
 
-# CORRIGIDO: Usa um arquivo temporário para obter o nome de usuário com acentos.
 def limpar_pastas_usuario():
     """Limpa as pastas Desktop e Downloads do usuário, lidando com acentos."""
     yield "Iniciando limpeza de pastas do usuário..."
