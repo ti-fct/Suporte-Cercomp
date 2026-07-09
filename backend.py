@@ -199,9 +199,10 @@ def reiniciar_explorer():
 
 def habilitar_escrita_desktop():
     """
-    Restaura a permissão de escrita na Área de Trabalho para os usuários Padrão (não administradores)
+    Restaura a permissão de escrita no Desktop e na pasta de Themes (wallpaper) 
+    para os usuários Padrão (não administradores).
     """
-    yield "🔓 Habilitando Permissão de Escrita no Desktop (usuários padrão) ---"
+    yield "🔓 Habilitando Permissão de Escrita e Troca de Wallpaper (usuários padrão) ---"
     usuarios_padrao, erro = _listar_usuarios_padrao()
     if erro:
         yield erro
@@ -211,20 +212,29 @@ def habilitar_escrita_desktop():
         return
 
     for nome_usuario, caminho_desktop in usuarios_padrao:
-        yield f"Restaurando permissão de escrita para '{nome_usuario}' em '{caminho_desktop}'..."
-        comando_remover_deny = f'icacls "{caminho_desktop}" /remove:d "{nome_usuario}" /T /C'
-        yield from executar_comando_cmd(comando_remover_deny)
-        comando_grant = f'icacls "{caminho_desktop}" /grant "{nome_usuario}":(F) /T /C'
-        yield from executar_comando_cmd(comando_grant)
+        yield f"Restaurando permissões para '{nome_usuario}'..."
+        yield from executar_comando_cmd(f'icacls "{caminho_desktop}" /remove:d "{nome_usuario}" /T /C')
+        yield from executar_comando_cmd(f'icacls "{caminho_desktop}" /grant "{nome_usuario}":(F) /T /C')
+        caminho_themes = os.path.join("C:\\Users", nome_usuario, "AppData\\Roaming\\Microsoft\\Windows\\Themes")
+        if os.path.exists(caminho_themes):
+            yield from executar_comando_cmd(f'icacls "{caminho_themes}" /remove:d "{nome_usuario}" /T /C')
+            yield from executar_comando_cmd(f'icacls "{caminho_themes}" /grant "{nome_usuario}":(F) /T /C')
+        caminho_ntuser = os.path.join("C:\\Users", nome_usuario, "NTUSER.DAT")
+        if os.path.exists(caminho_ntuser):
+            yield from executar_comando_cmd(f'reg load HKU\\TempHive_{nome_usuario} "{caminho_ntuser}"')
+            # Usando "exit /b 0" para ignorar o erro caso a chave já não exista
+            yield from executar_comando_cmd(f'reg delete "HKU\\TempHive_{nome_usuario}\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop" /v NoChangingWallpaper /f 2>nul & exit /b 0')
+            yield from executar_comando_cmd(f'reg unload HKU\\TempHive_{nome_usuario}"')
 
-    yield "Permissão de escrita no Desktop foi HABILITADA para os usuários padrão."
+    yield "Permissões HABILITADAS: Usuários padrão podem alterar o wallpaper."
     yield from reiniciar_explorer()
 
 def desabilitar_escrita_desktop():
     """
-    Remove a permissão de escrita na Área de Trabalho SOMENTE para os usuários PADRÃO (não administradores) do computador
+    Remove a permissão de escrita no Desktop e bloqueia a alteração de wallpaper 
+    SOMENTE para os usuários PADRÃO (não administradores).
     """
-    yield "🔒 Desabilitando Permissão de Escrita no Desktop (usuários padrão) ---"
+    yield "🔒 Desabilitando Permissão de Escrita e Troca de Wallpaper (usuários padrão) ---"
     usuarios_padrao, erro = _listar_usuarios_padrao()
     if erro:
         yield erro
@@ -234,12 +244,18 @@ def desabilitar_escrita_desktop():
         return
 
     for nome_usuario, caminho_desktop in usuarios_padrao:
-        yield f"Negando permissão de escrita para o usuário padrão '{nome_usuario}' em '{caminho_desktop}'..."
-        comando = f'icacls "{caminho_desktop}" /deny "{nome_usuario}":(W,DC) /T /C'
-        yield from executar_comando_cmd(comando)
+        yield f"Negando permissões para o usuário padrão '{nome_usuario}'..."
+        yield from executar_comando_cmd(f'icacls "{caminho_desktop}" /deny "{nome_usuario}":(W,DC) /T /C')
+        caminho_themes = os.path.join("C:\\Users", nome_usuario, "AppData\\Roaming\\Microsoft\\Windows\\Themes")
+        if os.path.exists(caminho_themes):
+            yield from executar_comando_cmd(f'icacls "{caminho_themes}" /deny "{nome_usuario}":(W,DC) /T /C')
+        caminho_ntuser = os.path.join("C:\\Users", nome_usuario, "NTUSER.DAT")
+        if os.path.exists(caminho_ntuser):
+            yield from executar_comando_cmd(f'reg load HKU\\TempHive_{nome_usuario} "{caminho_ntuser}"')
+            yield from executar_comando_cmd(f'reg add "HKU\\TempHive_{nome_usuario}\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop" /v NoChangingWallpaper /t REG_DWORD /d 1 /f')
+            yield from executar_comando_cmd(f'reg unload HKU\\TempHive_{nome_usuario}"')
 
-    yield "Permissão de escrita no Desktop foi DESABILITADA para os usuários padrão."
-    yield "Contas de administrador não foram alteradas e permanecem com escrita habilitada."
+    yield "Permissões DESABILITADAS: Usuários padrão não podem mais alterar o wallpaper."
     yield from reiniciar_explorer()
 
 def baixar_recursos_necessarios(url_repositorio):
@@ -628,42 +644,6 @@ def ajustar_melhor_desempenho():
     yield "Desativando serviços adicionais..."
     for s in ["WpcSvc", "WpcMonSvc", "DiagTrack", "DusmSvc", "GameInputSvc", "ScPolicySvc", "WbioSrvc", "BDESVC", "SCardSvr", "icssvc", "WerSvc", "SensorService", "PhoneSvc", "SysMain"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
-    yield "Todos os serviços adicionais foram desativados com sucesso."
-
-    yield "Desativando serviços adicionais..."
-    comandos_servicos = [
-        r'Stop-Service -Name "WpcSvc" -Force',          # Controle dos Pais
-        r'Stop-Service -Name "WpcMonSvc" -Force',       # Controle dos Pais depende da versão do windows
-        r'Stop-Service -Name "DiagTrack" -Force',       # Telemetria
-        r'Stop-Service -Name "DusmSvc" -Force',         # Experiências do Usuário Conectado
-        r'Stop-Service -Name "GameInputSvc" -Force',    # GameInput
-        r'Stop-Service -Name "ScPolicySvc" -Force',     # Política de Remoção de Cartão Inteligente
-        r'Stop-Service -Name "WbioSrvc" -Force',        # Biometria
-        r'Stop-Service -Name "BDESVC" -Force',          # BitLocker
-        r'Stop-Service -Name "SCardSvr" -Force',        # Cartão Inteligente
-        r'Stop-Service -Name "icssvc" -Force',          # Hotspot Móvel
-        r'Stop-Service -Name "WerSvc" -Force',          # Relatórios de Erro
-        r'Stop-Service -Name "SensorService" -Force',   # Sensor
-        r'Stop-Service -Name "PhoneSvc" -Force',        # Telefonia
-        r'Stop-Service -Name "SysMain" -Force',         # SysMain
-        r'Set-Service -Name "WpcSvc" -StartupType Disabled',
-        r'Set-Service -Name "WpcMonSvc" -StartupType Disabled',
-        r'Set-Service -Name "DiagTrack" -StartupType Disabled',
-        r'Set-Service -Name "DusmSvc" -StartupType Disabled',
-        r'Set-Service -Name "GameInputSvc" -StartupType Disabled',
-        r'Set-Service -Name "ScPolicySvc" -StartupType Disabled',
-        r'Set-Service -Name "WbioSrvc" -StartupType Disabled',
-        r'Set-Service -Name "BDESVC" -StartupType Disabled',
-        r'Set-Service -Name "SCardSvr" -StartupType Disabled',
-        r'Set-Service -Name "icssvc" -StartupType Disabled',
-        r'Set-Service -Name "WerSvc" -StartupType Disabled',
-        r'Set-Service -Name "SensorService" -StartupType Disabled',
-        r'Set-Service -Name "PhoneSvc" -StartupType Disabled',
-        r'Set-Service -Name "SysMain" -StartupType Disabled'
-    ]
-    for cmd in comandos_servicos:
-        yield from executar_comando_powershell(cmd)
-
     yield "Todos os serviços adicionais foram desativados com sucesso."
 
 def forcar_atualizacao_gpos():
