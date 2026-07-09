@@ -143,7 +143,8 @@ def _listar_usuarios_padrao():
     Retorna a lista de usuários LOCAIS 'padrão' (isto é, que NÃO pertencem ao grupo de Administradores)
     """
     # Contas internas do Windows que nunca devem ser tratadas como "aluno".
-    contas_sistema = "'Administrador','Administrator','Convidado','Guest','DefaultAccount','WDAGUtilityAccount','defaultuser0'"
+    contas_sistema = "'Administrador','Administrator','Convidado','Guest','DefaultAccount','WDAGUtilityAccount','defaultuser0', 'Suporte - Cercomp', 'Suporte_Cercomp', 'Suporte-Cercomp'"
+
 
     comando_ps = (
         "$grupoAdmins = Get-LocalGroup | Where-Object { $_.SID -like '*-544' }; "
@@ -213,24 +214,76 @@ def habilitar_escrita_desktop():
         yield "AVISO: Nenhum usuário padrão (não administrador) foi encontrado neste computador."
         return
 
+    # 1. Limpar restrições de registro no nível da MÁQUINA (HKLM) - Remove a mensagem para todos
+    yield "Limpando políticas globais de máquina (HKLM)..."
+    yield from executar_comando_powershell(
+        'Remove-ItemProperty -Path "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop" -Name "NoChangingWallpaper" -ErrorAction SilentlyContinue; '
+        'Remove-ItemProperty -Path "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" -Name "Wallpaper" -ErrorAction SilentlyContinue'
+    )
+
     for nome_usuario, caminho_desktop in usuarios_padrao:
         yield f"Restaurando permissões para '{nome_usuario}'..."
+        
+        # 2. Desbloquear Desktop
         yield from executar_comando_cmd(f'icacls "{caminho_desktop}" /remove:d "{nome_usuario}" /T /C')
         yield from executar_comando_cmd(f'icacls "{caminho_desktop}" /grant "{nome_usuario}":(F) /T /C')
+        
+        # 3. Desbloquear pasta Themes e CachedFiles (Onde o Windows guarda o wallpaper processado)
         caminho_themes = os.path.join("C:\\Users", nome_usuario, "AppData\\Roaming\\Microsoft\\Windows\\Themes")
         if os.path.exists(caminho_themes):
             yield from executar_comando_cmd(f'icacls "{caminho_themes}" /remove:d "{nome_usuario}" /T /C')
             yield from executar_comando_cmd(f'icacls "{caminho_themes}" /grant "{nome_usuario}":(F) /T /C')
-        caminho_ntuser = os.path.join("C:\\Users", nome_usuario, "NTUSER.DAT")
-        if os.path.exists(caminho_ntuser):
-            yield from executar_comando_cmd(f'reg load HKU\\TempHive_{nome_usuario} "{caminho_ntuser}"')
-            # Usando "exit /b 0" para ignorar o erro caso a chave já não exista
-            yield from executar_comando_cmd(f'reg delete "HKU\\TempHive_{nome_usuario}\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop" /v NoChangingWallpaper /f 2>nul & exit /b 0')
-            yield from executar_comando_cmd(f'reg unload HKU\\TempHive_{nome_usuario}"')
+            
+            caminho_cached = os.path.join(caminho_themes, "CachedFiles")
+            if os.path.exists(caminho_cached):
+                yield from executar_comando_cmd(f'icacls "{caminho_cached}" /remove:d "{nome_usuario}" /T /C')
+                yield from executar_comando_cmd(f'icacls "{caminho_cached}" /grant "{nome_usuario}":(F) /T /C')
+
+        # 4. Remover bloqueio do registro no nível do USUÁRIO (HKCU)
+        comando_ps = f'''
+        $user = "{nome_usuario}"
+        $localUser = Get-LocalUser -Name $user -ErrorAction SilentlyContinue
+        if (-not $localUser) {{ return }}
+        
+        $sid = $localUser.SID.Value
+        $hivePath = "C:\\Users\\$user\\NTUSER.DAT"
+        $regPath = "Registry::HKEY_USERS\\$sid"
+        $tempHive = "HKU\\TempHive_$user"
+        $loaded = $false
+
+        if (-not (Test-Path $regPath)) {{
+            reg load $tempHive $hivePath 2>$null
+            if (Test-Path "Registry::$tempHive") {{
+                $regPath = "Registry::$tempHive"
+                $loaded = $true
+            }}
+        }}
+
+        if (Test-Path $regPath) {{
+            $paths = @(
+                "$regPath\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop",
+                "$regPath\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+            )
+            foreach ($p in $paths) {{
+                if (Test-Path $p) {{
+                    Remove-ItemProperty -Path $p -Name "NoChangingWallpaper" -ErrorAction SilentlyContinue
+                    Remove-ItemProperty -Path $p -Name "Wallpaper" -ErrorAction SilentlyContinue
+                    Remove-ItemProperty -Path $p -Name "WallpaperStyle" -ErrorAction SilentlyContinue
+                }}
+            }}
+        }}
+
+        if ($loaded) {{
+            [gc]::Collect()
+            reg unload $tempHive 2>$null
+        }}
+        Write-Output "Registro liberado para $user."
+        '''
+        yield from executar_comando_powershell(comando_ps)
 
     yield "Permissões HABILITADAS: Usuários padrão podem alterar o wallpaper."
     yield from reiniciar_explorer()
-
+    
 def desabilitar_escrita_desktop():
     """
     Remove a permissão de escrita no Desktop e bloqueia a alteração de wallpaper 
@@ -251,11 +304,39 @@ def desabilitar_escrita_desktop():
         caminho_themes = os.path.join("C:\\Users", nome_usuario, "AppData\\Roaming\\Microsoft\\Windows\\Themes")
         if os.path.exists(caminho_themes):
             yield from executar_comando_cmd(f'icacls "{caminho_themes}" /deny "{nome_usuario}":(W,DC) /T /C')
-        caminho_ntuser = os.path.join("C:\\Users", nome_usuario, "NTUSER.DAT")
-        if os.path.exists(caminho_ntuser):
-            yield from executar_comando_cmd(f'reg load HKU\\TempHive_{nome_usuario} "{caminho_ntuser}"')
-            yield from executar_comando_cmd(f'reg add "HKU\\TempHive_{nome_usuario}\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop" /v NoChangingWallpaper /t REG_DWORD /d 1 /f')
-            yield from executar_comando_cmd(f'reg unload HKU\\TempHive_{nome_usuario}"')
+        comando_ps = f'''
+        $user = "{nome_usuario}"
+        try {{
+            $sid = (New-Object System.Security.Principal.NTAccount($user)).Translate([System.Security.Principal.SecurityIdentifier]).Value
+        }} catch {{
+            $sid = $null
+        }}
+        $hiveLoaded = $false
+        $basePath = "Registry::HKEY_USERS\\$sid"
+        
+        if (-not $sid -or -not (Test-Path $basePath)) {{
+            reg load "HKU\\TempHive_$user" "C:\\Users\\$user\\NTUSER.DAT" 2>$null
+            if (Test-Path "Registry::HKEY_USERS\\TempHive_$user") {{
+                $hiveLoaded = $true
+                $basePath = "Registry::HKEY_USERS\\TempHive_$user"
+            }}
+        }}
+        
+        if ($basePath) {{
+            $keyPath = "$basePath\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\ActiveDesktop"
+            if (-not (Test-Path $keyPath)) {{
+                New-Item -Path $keyPath -Force | Out-Null
+            }}
+            Set-ItemProperty -Path $keyPath -Name "NoChangingWallpaper" -Value 1 -Type DWord
+        }}
+        
+        if ($hiveLoaded) {{
+            [gc]::Collect()
+            reg unload "HKU\\TempHive_$user" 2>$null
+        }}
+        Write-Output "Bloqueio de registro aplicado para $user."
+        '''
+        yield from executar_comando_powershell(comando_ps)
 
     yield "Permissões DESABILITADAS: Usuários padrão não podem mais alterar o wallpaper."
     yield from reiniciar_explorer()
