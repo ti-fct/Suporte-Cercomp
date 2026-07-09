@@ -155,6 +155,16 @@ def _obter_caminho_desktop_usuario():
     
     return usuario, caminho_desktop, None
 
+def reiniciar_explorer():
+    """Reinicia o processo do Windows Explorer."""
+    yield "Reiniciando parâmetros do sistema..."
+    yield from executar_comando_cmd("RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters ,1 ,True")
+    yield "Reiniciando o Windows Explorer..."
+    yield from executar_comando_cmd("taskkill /F /IM explorer.exe")
+    time.sleep(2)  # Pequena pausa para garantir que o processo foi encerrado
+    yield from executar_comando_cmd("start explorer.exe")
+    yield "Windows Explorer reiniciado com sucesso."
+    
 def habilitar_escrita_desktop():
     """Concede permissão de escrita para o usuário atual em sua Área de Trabalho."""
     yield "--- Habilitando Permissão de Escrita no Desktop ---"
@@ -170,6 +180,7 @@ def habilitar_escrita_desktop():
     yield from executar_comando_cmd(comando)
     yield "Permissão de escrita no Desktop foi HABILITADA."
     yield "Pode ser necessário reiniciar o Explorer para o efeito ser completo."
+    yield from reiniciar_explorer()
 
 def desabilitar_escrita_desktop():
     """Remove permissão de escrita para o usuário atual em sua Área de Trabalho."""
@@ -185,7 +196,7 @@ def desabilitar_escrita_desktop():
     yield from executar_comando_cmd(comando)
     yield "Permissão de escrita no Desktop foi DESABILITADA."
     yield "Pode ser necessário reiniciar o Explorer para o efeito ser completo."
-
+    yield from reiniciar_explorer()
 
 # ... (O resto das funções de backend como 'aplicar_tema_fct', 'limpar_pastas_usuario', etc. permanecem inalteradas) ...
 def baixar_recursos_necessarios(url_repositorio):
