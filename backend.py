@@ -155,47 +155,136 @@ def _obter_caminho_desktop_usuario():
     
     return usuario, caminho_desktop, None
 
+def _listar_usuarios_padrao():
+    """
+    Retorna a lista de usuários LOCAIS 'padrão' (isto é, que NÃO pertencem ao
+    grupo de Administradores) que possuem uma pasta de perfil válida em
+    C:\\Users, junto com o caminho da respectiva Área de Trabalho.
+
+    Isso é usado para diferenciar contas de aluno (padrão) de contas de
+    administrador/suporte, independentemente de qual usuário está executando
+    a própria ferramenta no momento.
+
+    Retorna: (lista_de_tuplas[(nome_usuario, caminho_desktop), ...], mensagem_de_erro_ou_None)
+    """
+    # Contas internas do Windows que nunca devem ser tratadas como "aluno".
+    contas_sistema = "'Administrador','Administrator','Convidado','Guest','DefaultAccount','WDAGUtilityAccount','defaultuser0'"
+
+    # Usamos o SID do grupo (termina em -544) em vez do nome, pois o nome do
+    # grupo de Administradores muda conforme o idioma do Windows
+    # ("Administradores" no PT-BR, "Administrators" no EN-US, etc.).
+    comando_ps = (
+        "$grupoAdmins = Get-LocalGroup | Where-Object { $_.SID -like '*-544' }; "
+        "$membrosAdmins = @(); "
+        "if ($grupoAdmins) { "
+        "$membrosAdmins = @((Get-LocalGroupMember -Group $grupoAdmins -ErrorAction SilentlyContinue) | "
+        "ForEach-Object { $_.Name -replace '^.*\\\\', '' }) }; "
+        f"$contasSistema = @({contas_sistema}); "
+        "$usuarios = Get-LocalUser -ErrorAction SilentlyContinue | Where-Object { $_.Enabled -eq $true }; "
+        "$usuariosPadrao = $usuarios | Where-Object { ($membrosAdmins -notcontains $_.Name) -and ($contasSistema -notcontains $_.Name) }; "
+        "($usuariosPadrao.Name) -join ';'"
+    )
+
+    try:
+        processo = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", comando_ps],
+            capture_output=True, text=True, encoding='utf-8', errors='ignore',
+            timeout=60, check=False, creationflags=subprocess.CREATE_NO_WINDOW
+        )
+    except Exception as e:
+        return [], f"ERRO CRÍTICO ao listar usuários locais: {e}"
+
+    if processo.returncode != 0:
+        detalhe = processo.stderr.strip() if processo.stderr else "sem detalhes adicionais"
+        return [], f"ERRO CRÍTICO ao listar usuários locais (código {processo.returncode}): {detalhe}"
+
+    nomes_brutos = (processo.stdout or "").strip()
+    if not nomes_brutos:
+        # Nenhum usuário padrão encontrado (ex.: só existe a conta de admin). Não é um erro fatal.
+        return [], None
+
+    nomes_usuarios = [n.strip() for n in nomes_brutos.split(';') if n.strip()]
+
+    usuarios_validos = []
+    for nome in nomes_usuarios:
+        caminho_desktop = os.path.join("C:\\Users", nome, "Desktop")
+        if os.path.exists(caminho_desktop):
+            usuarios_validos.append((nome, caminho_desktop))
+
+    return usuarios_validos, None
+
 def reiniciar_explorer():
     """Reinicia o processo do Windows Explorer."""
     yield "Reiniciando parâmetros do sistema..."
-    yield from executar_comando_cmd("RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters ,1 ,True")
+    yield from executar_comando_powershell(f"RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters ,1 ,True")
     yield "Reiniciando o Windows Explorer..."
-    yield from executar_comando_cmd("taskkill /F /IM explorer.exe")
+    yield from executar_comando_cmd(f"taskkill /F /IM explorer.exe")
     time.sleep(2)  # Pequena pausa para garantir que o processo foi encerrado
-    yield from executar_comando_cmd("start explorer.exe")
+    yield from executar_comando_cmd(f"start explorer.exe")
+    yield from executar_comando_powershell(f"Stop-Process -Name explorer -Force; Start-Process explorer")
     yield "Windows Explorer reiniciado com sucesso."
-    
+    yield from executar_comando_cmd(f"gpupdate /force")
+    yield "Atualização de políticas forçada."
+
 def habilitar_escrita_desktop():
-    """Concede permissão de escrita para o usuário atual em sua Área de Trabalho."""
-    yield "--- Habilitando Permissão de Escrita no Desktop ---"
-    usuario, caminho_desktop, erro = _obter_caminho_desktop_usuario()
+    """
+    Restaura a permissão de escrita na Área de Trabalho para os usuários
+    PADRÃO (não administradores) do computador — revertendo o bloqueio
+    aplicado por desabilitar_escrita_desktop().
+
+    Atua sobre todas as contas padrão da máquina (e não apenas sobre quem
+    estiver logado executando esta ferramenta), pois um técnico costuma
+    rodar a manutenção logado como Administrador.
+    """
+    yield "--- Habilitando Permissão de Escrita no Desktop (usuários padrão) ---"
+    usuarios_padrao, erro = _listar_usuarios_padrao()
     if erro:
         yield erro
         return
+    if not usuarios_padrao:
+        yield "AVISO: Nenhum usuário padrão (não administrador) foi encontrado neste computador."
+        return
 
-    yield f"Concedendo permissão total para o usuário '{usuario}' em '{caminho_desktop}'..."
-    # /grant concede permissões. (F) é Full Control.
-    # /T opera em subdiretórios. /C continua mesmo que ocorram erros em alguns arquivos.
-    comando = f'icacls "{caminho_desktop}" /grant "{usuario}":(F) /T /C'
-    yield from executar_comando_cmd(comando)
-    yield "Permissão de escrita no Desktop foi HABILITADA."
+    for nome_usuario, caminho_desktop in usuarios_padrao:
+        yield f"Restaurando permissão de escrita para '{nome_usuario}' em '{caminho_desktop}'..."
+        # /remove:d remove qualquer ACE de DENY previamente aplicada. Isso é
+        # necessário porque, no Windows, uma permissão DENY sempre prevalece
+        # sobre uma ALLOW para o mesmo usuário, mesmo que a ALLOW seja
+        # concedida depois — só conceder (F) não seria suficiente.
+        comando_remover_deny = f'icacls "{caminho_desktop}" /remove:d "{nome_usuario}" /T /C'
+        yield from executar_comando_cmd(comando_remover_deny)
+        # /grant concede permissões. (F) é Full Control.
+        # /T opera em subdiretórios. /C continua mesmo que ocorram erros em alguns arquivos.
+        comando_grant = f'icacls "{caminho_desktop}" /grant "{nome_usuario}":(F) /T /C'
+        yield from executar_comando_cmd(comando_grant)
+
+    yield "Permissão de escrita no Desktop foi HABILITADA para os usuários padrão."
     yield "Pode ser necessário reiniciar o Explorer para o efeito ser completo."
     yield from reiniciar_explorer()
 
 def desabilitar_escrita_desktop():
-    """Remove permissão de escrita para o usuário atual em sua Área de Trabalho."""
-    yield "--- Desabilitando Permissão de Escrita no Desktop ---"
-    usuario, caminho_desktop, erro = _obter_caminho_desktop_usuario()
+    """
+    Remove a permissão de escrita na Área de Trabalho SOMENTE para os
+    usuários PADRÃO (não administradores) do computador. Contas de
+    administrador não são afetadas e permanecem com escrita habilitada.
+    """
+    yield "--- Desabilitando Permissão de Escrita no Desktop (usuários padrão) ---"
+    usuarios_padrao, erro = _listar_usuarios_padrao()
     if erro:
         yield erro
         return
+    if not usuarios_padrao:
+        yield "AVISO: Nenhum usuário padrão (não administrador) foi encontrado neste computador. Nada a fazer."
+        return
 
-    yield f"Negando permissão de escrita para o usuário '{usuario}' em '{caminho_desktop}'..."
-    # /deny nega permissões. (W) é Write, (DC) é Delete Child.
-    comando = f'icacls "{caminho_desktop}" /deny "{usuario}":(W,DC) /T /C'
-    yield from executar_comando_cmd(comando)
-    yield "Permissão de escrita no Desktop foi DESABILITADA."
-    yield "Pode ser necessário reiniciar o Explorer para o efeito ser completo."
+    for nome_usuario, caminho_desktop in usuarios_padrao:
+        yield f"Negando permissão de escrita para o usuário padrão '{nome_usuario}' em '{caminho_desktop}'..."
+        # /deny nega permissões. (W) é Write, (DC) é Delete Child.
+        comando = f'icacls "{caminho_desktop}" /deny "{nome_usuario}":(W,DC) /T /C'
+        yield from executar_comando_cmd(comando)
+
+    yield "Permissão de escrita no Desktop foi DESABILITADA para os usuários padrão."
+    yield "Contas de administrador não foram alteradas e permanecem com escrita habilitada."
     yield from reiniciar_explorer()
 
 # ... (O resto das funções de backend como 'aplicar_tema_fct', 'limpar_pastas_usuario', etc. permanecem inalteradas) ...
