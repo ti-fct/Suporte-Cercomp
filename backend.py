@@ -597,61 +597,38 @@ def resetar_microsoft_store():
 
 def ajustar_melhor_desempenho():
     """Habilitar a opção Ajustar para obter o melhor desempenho dentro de configurações avançadas e desativar serviços do Xbox."""
-    yield "⚙ Iniciando ajuste para melhor desempenho..."
-    comando = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name VisualFXSetting -Value 2"""
-    yield from executar_comando_powershell(comando)
-    yield "Comando de melhorar desempenho enviado."
-    yield "Confira nas configurações avançadas."
-    yield from executar_comando_cmd(r"sysdm.cpl ,3", timeout=120)
-
+    ps, cmd = executar_comando_powershell, executar_comando_cmd
+    
+    yield "Iniciando ajuste para melhor desempenho..."
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects VisualFXSetting 2')
+    yield "Comando de melhorar desempenho enviado.\nConfira nas configurações avançadas."
+    yield from cmd("sysdm.cpl ,3", timeout=120)
     yield "Limpando o cache DNS."
-    yield from executar_comando_cmd(r"ipconfig /flushdns", timeout=120)
-
+    yield from cmd("ipconfig /flushdns", timeout=120)
     yield "Desativando tela de boas-vindas..."
-    comandoDesativarBoasVindas = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name SubscribedContent-310093Enabled -Value 0"""
-    yield from executar_comando_powershell(comandoDesativarBoasVindas)
-
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-310093Enabled 0')
     yield "Desativando animações no menu Iniciar..."
-    comando_menu = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name TaskbarAnimations -Value 0"""
-    yield from executar_comando_powershell(comando_menu)
-    
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced TaskbarAnimations 0')
     yield "Desativando transições de janelas..."
-    comando_transicoes = r"""Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WindowMetrics -Value "-15"
-    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name MinAnimate -Value 0"""
-    yield from executar_comando_powershell(comando_transicoes)
-    
+    yield from ps(r'Set-ItemProperty "HKCU:\Control Panel\Desktop" WindowMetrics -15; Set-ItemProperty "HKCU:\Control Panel\Desktop" MinAnimate 0')
     yield "Desativando efeitos de transparência..."
-    comando_transparencia = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name EnableTransparency -Value 0"""
-    yield from executar_comando_powershell(comando_transparencia)
-    
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize EnableTransparency 0')
     yield "Desativando notificações de dicas..."
-    comando_dicas = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name SoftLandingEnabled -Value 0
-    Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" -Name DisableTailoredExperiences -Value 1 -Force -ErrorAction SilentlyContinue"""
-    yield from executar_comando_powershell(comando_dicas)
-    
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SoftLandingEnabled 0; Set-ItemProperty HKCU:\Software\Policies\Microsoft\Windows\CloudContent DisableTailoredExperiences 1 -Force -ErrorAction SilentlyContinue')
     yield "Ajustando prioridade de I/O do sistema..."
-    comando_io = r"""Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name Win32PrioritySeparation -Value 24"""
-    yield from executar_comando_powershell(comando_io)
-    
+    yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl Win32PrioritySeparation 24')
     yield "Aumentando tamanho do cache de disco..."
-    comando_cache = r"""Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" -Name MaxRawWorkItems -Value 512"""
-    yield from executar_comando_powershell(comando_cache)
+    yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters MaxRawWorkItems 512')
     
     yield "Desativando serviços do Xbox..."
-    comandos_xbox = [
-        r'Stop-Service -Name "XboxGipSvc" -Force',
-        r'Stop-Service -Name "XboxNetApiSvc" -Force',
-        r'Stop-Service -Name "XblAuthManager" -Force',
-        r'Stop-Service -Name "XblGameSave" -Force',
-        r'Set-Service -Name "XboxGipSvc" -StartupType Disabled',
-        r'Set-Service -Name "XboxNetApiSvc" -StartupType Disabled',
-        r'Set-Service -Name "XblAuthManager" -StartupType Disabled',
-        r'Set-Service -Name "XblGameSave" -StartupType Disabled'
-    ]
-    for cmd in comandos_xbox:
-        yield from executar_comando_powershell(cmd)
-
+    for s in ["XboxGipSvc", "XboxNetApiSvc", "XblAuthManager", "XblGameSave"]:
+        yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
     yield "Serviços do Xbox desativados com sucesso."
+
+    yield "Desativando serviços adicionais..."
+    for s in ["WpcSvc", "WpcMonSvc", "DiagTrack", "DusmSvc", "GameInputSvc", "ScPolicySvc", "WbioSrvc", "BDESVC", "SCardSvr", "icssvc", "WerSvc", "SensorService", "PhoneSvc", "SysMain"]:
+        yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
+    yield "Todos os serviços adicionais foram desativados com sucesso."
 
     yield "Desativando serviços adicionais..."
     comandos_servicos = [
