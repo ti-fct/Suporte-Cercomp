@@ -143,36 +143,13 @@ def executar_comando_cmd(comando, timeout=180, work_dir=None):
     except Exception as e:
         yield f"ERRO CRÍTICO (CMD): {e}"
 
-def _obter_caminho_desktop_usuario():
-    """Função auxiliar para obter o usuário e o caminho do desktop."""
-    usuario = os.environ.get('USERNAME')
-    if not usuario:
-        return None, None, "ERRO CRÍTICO: Não foi possível obter o nome de usuário do sistema."
-    
-    caminho_desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-    if not os.path.exists(caminho_desktop):
-        return None, None, f"ERRO CRÍTICO: O diretório do Desktop não foi encontrado em '{caminho_desktop}'."
-    
-    return usuario, caminho_desktop, None
-
 def _listar_usuarios_padrao():
     """
-    Retorna a lista de usuários LOCAIS 'padrão' (isto é, que NÃO pertencem ao
-    grupo de Administradores) que possuem uma pasta de perfil válida em
-    C:\\Users, junto com o caminho da respectiva Área de Trabalho.
-
-    Isso é usado para diferenciar contas de aluno (padrão) de contas de
-    administrador/suporte, independentemente de qual usuário está executando
-    a própria ferramenta no momento.
-
-    Retorna: (lista_de_tuplas[(nome_usuario, caminho_desktop), ...], mensagem_de_erro_ou_None)
+    Retorna a lista de usuários LOCAIS 'padrão' (isto é, que NÃO pertencem ao grupo de Administradores)
     """
     # Contas internas do Windows que nunca devem ser tratadas como "aluno".
     contas_sistema = "'Administrador','Administrator','Convidado','Guest','DefaultAccount','WDAGUtilityAccount','defaultuser0'"
 
-    # Usamos o SID do grupo (termina em -544) em vez do nome, pois o nome do
-    # grupo de Administradores muda conforme o idioma do Windows
-    # ("Administradores" no PT-BR, "Administrators" no EN-US, etc.).
     comando_ps = (
         "$grupoAdmins = Get-LocalGroup | Where-Object { $_.SID -like '*-544' }; "
         "$membrosAdmins = @(); "
@@ -200,7 +177,6 @@ def _listar_usuarios_padrao():
 
     nomes_brutos = (processo.stdout or "").strip()
     if not nomes_brutos:
-        # Nenhum usuário padrão encontrado (ex.: só existe a conta de admin). Não é um erro fatal.
         return [], None
 
     nomes_usuarios = [n.strip() for n in nomes_brutos.split(';') if n.strip()]
@@ -223,18 +199,12 @@ def reiniciar_explorer():
     yield from executar_comando_cmd(f"start explorer.exe")
     yield from executar_comando_powershell(f"Stop-Process -Name explorer -Force; Start-Process explorer")
     yield "Windows Explorer reiniciado com sucesso."
-    yield from executar_comando_cmd(f"gpupdate /force")
+    yield from executar_comando_cmd(f"gpupdate /force", timeout=300)
     yield "Atualização de políticas forçada."
 
 def habilitar_escrita_desktop():
     """
-    Restaura a permissão de escrita na Área de Trabalho para os usuários
-    PADRÃO (não administradores) do computador — revertendo o bloqueio
-    aplicado por desabilitar_escrita_desktop().
-
-    Atua sobre todas as contas padrão da máquina (e não apenas sobre quem
-    estiver logado executando esta ferramenta), pois um técnico costuma
-    rodar a manutenção logado como Administrador.
+    Restaura a permissão de escrita na Área de Trabalho para os usuários Padrão (não administradores)
     """
     yield "--- Habilitando Permissão de Escrita no Desktop (usuários padrão) ---"
     usuarios_padrao, erro = _listar_usuarios_padrao()
@@ -247,26 +217,17 @@ def habilitar_escrita_desktop():
 
     for nome_usuario, caminho_desktop in usuarios_padrao:
         yield f"Restaurando permissão de escrita para '{nome_usuario}' em '{caminho_desktop}'..."
-        # /remove:d remove qualquer ACE de DENY previamente aplicada. Isso é
-        # necessário porque, no Windows, uma permissão DENY sempre prevalece
-        # sobre uma ALLOW para o mesmo usuário, mesmo que a ALLOW seja
-        # concedida depois — só conceder (F) não seria suficiente.
         comando_remover_deny = f'icacls "{caminho_desktop}" /remove:d "{nome_usuario}" /T /C'
         yield from executar_comando_cmd(comando_remover_deny)
-        # /grant concede permissões. (F) é Full Control.
-        # /T opera em subdiretórios. /C continua mesmo que ocorram erros em alguns arquivos.
         comando_grant = f'icacls "{caminho_desktop}" /grant "{nome_usuario}":(F) /T /C'
         yield from executar_comando_cmd(comando_grant)
 
     yield "Permissão de escrita no Desktop foi HABILITADA para os usuários padrão."
-    yield "Pode ser necessário reiniciar o Explorer para o efeito ser completo."
     yield from reiniciar_explorer()
 
 def desabilitar_escrita_desktop():
     """
-    Remove a permissão de escrita na Área de Trabalho SOMENTE para os
-    usuários PADRÃO (não administradores) do computador. Contas de
-    administrador não são afetadas e permanecem com escrita habilitada.
+    Remove a permissão de escrita na Área de Trabalho SOMENTE para os usuários PADRÃO (não administradores) do computador
     """
     yield "--- Desabilitando Permissão de Escrita no Desktop (usuários padrão) ---"
     usuarios_padrao, erro = _listar_usuarios_padrao()
@@ -279,7 +240,6 @@ def desabilitar_escrita_desktop():
 
     for nome_usuario, caminho_desktop in usuarios_padrao:
         yield f"Negando permissão de escrita para o usuário padrão '{nome_usuario}' em '{caminho_desktop}'..."
-        # /deny nega permissões. (W) é Write, (DC) é Delete Child.
         comando = f'icacls "{caminho_desktop}" /deny "{nome_usuario}":(W,DC) /T /C'
         yield from executar_comando_cmd(comando)
 
@@ -586,7 +546,7 @@ def iniciar_limpeza_sistema(url_ferramenta):
     zip_path = os.path.join(base_dir, "BleachBit.zip")
     try:
         yield f"Baixando BleachBit para {base_dir}..."
-        with requests.get(url_ferramenta, stream=True) as r:
+        with requests.get(url_ferramenta, stream=True, timeout=300) as r:
             r.raise_for_status()
             with open(zip_path, 'wb') as f: shutil.copyfileobj(r.raw, f)
         yield f"Extraindo para {tool_dir}..."
@@ -606,12 +566,11 @@ def iniciar_limpeza_sistema(url_ferramenta):
         yield "Apagando arquivos da pasta Music..."
         comandoLimparPastaMusic = r"""Remove-Item -Path "C:\Users\Aluno\Music\*" -Recurse -Force -ErrorAction SilentlyContinue"""
         yield from executar_comando_powershell(comandoLimparPastaMusic)
-        subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=600)
         yield "Limpeza completa concluída!"
     except Exception as e:
         yield f"ERRO durante a limpeza: {e}"
     finally:
-        # A limpeza dos arquivos baixados continua sendo uma boa prática
         if os.path.exists(tool_dir): shutil.rmtree(tool_dir, ignore_errors=True)
         if os.path.exists(zip_path): os.remove(zip_path)
 
@@ -634,7 +593,7 @@ def restaurar_gpos_padrao():
                 yield f"Removido: {path}"
             except Exception as e:
                 yield f"ERRO ao remover {path}: {e}"
-    yield from executar_comando_cmd("gpupdate /force", timeout=120)
+    yield from executar_comando_cmd("gpupdate /force", timeout=300)
     yield "Restauração das GPOs padrão concluída."
 
 def resetar_microsoft_store():
@@ -654,13 +613,40 @@ def ajustar_melhor_desempenho():
     yield from executar_comando_powershell(comando)
     yield "Comando de melhorar desempenho enviado."
     yield "Confira nas configurações avançadas."
-    yield from executar_comando_cmd("sysdm.cpl ,3", timeout=120)
+    yield from executar_comando_cmd(r"sysdm.cpl ,3", timeout=120)
+    
     yield "Limpando o cache DNS."
-    yield from executar_comando_cmd("ipconfig /flushdns", timeout=120)
+    yield from executar_comando_cmd(r"ipconfig /flushdns", timeout=120)
 
     yield "Desativando tela de boas-vindas..."
     comandoDesativarBoasVindas = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name SubscribedContent-310093Enabled -Value 0"""
     yield from executar_comando_powershell(comandoDesativarBoasVindas)
+
+    yield "Desativando animações no menu Iniciar..."
+    comando_menu = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name TaskbarAnimations -Value 0"""
+    yield from executar_comando_powershell(comando_menu)
+    
+    yield "Desativando transições de janelas..."
+    comando_transicoes = r"""Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name WindowMetrics -Value "-15"
+    Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name MinAnimate -Value 0"""
+    yield from executar_comando_powershell(comando_transicoes)
+    
+    yield "Desativando efeitos de transparência..."
+    comando_transparencia = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name EnableTransparency -Value 0"""
+    yield from executar_comando_powershell(comando_transparencia)
+    
+    yield "Desativando notificações de dicas..."
+    comando_dicas = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name SoftLandingEnabled -Value 0
+    Set-ItemProperty -Path "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" -Name DisableTailoredExperiences -Value 1 -Force -ErrorAction SilentlyContinue"""
+    yield from executar_comando_powershell(comando_dicas)
+    
+    yield "Ajustando prioridade de I/O do sistema..."
+    comando_io = r"""Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name Win32PrioritySeparation -Value 24"""
+    yield from executar_comando_powershell(comando_io)
+    
+    yield "Aumentando tamanho do cache de disco..."
+    comando_cache = r"""Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" -Name MaxRawWorkItems -Value 512"""
+    yield from executar_comando_powershell(comando_cache)
     
     yield "Desativando serviços do Xbox..."
     comandos_xbox = [
@@ -718,7 +704,7 @@ def ajustar_melhor_desempenho():
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
     yield "Forçando atualização das Políticas de Grupo (GPOs)..."
-    yield from executar_comando_cmd("gpupdate /force", timeout=120)
+    yield from executar_comando_cmd("gpupdate /force", timeout=300)
     yield "Tentativa de atualização de GPO concluída."
 
 # CORRIGIDO: Usa um arquivo temporário para obter o nome de usuário com acentos.
