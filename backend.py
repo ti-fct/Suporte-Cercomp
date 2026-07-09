@@ -185,15 +185,17 @@ def _listar_usuarios_padrao():
     return usuarios_validos, None
 
 def reiniciar_explorer():
-    """Reinicia o processo do Windows Explorer."""
+    """Reinicia o processo do Windows Explorer de forma segura."""
     yield "↩ Reiniciando parâmetros do sistema..."
-    yield from executar_comando_powershell(f"RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters ,1 ,True")
+    yield from executar_comando_cmd("RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters ,1 ,True")
+    
     yield "Reiniciando o Windows Explorer..."
-    yield from executar_comando_cmd(r"taskkill /F /IM explorer.exe")
-    time.sleep(2)  # Pequena pausa para garantir que o processo foi encerrado
-    yield from executar_comando_cmd(r"start explorer.exe")
-    yield from executar_comando_powershell(r"Stop-Process -Name explorer -Force; Start-Process explorer")
-    yield "Windows Explorer reiniciado com sucesso."
+    comando_ps = (
+        "Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue; "
+        "Start-Sleep -Seconds 3; "
+        "Start-Process explorer.exe"
+    )
+    yield from executar_comando_powershell(comando_ps)
     yield from executar_comando_cmd(r"gpupdate /force", timeout=300)
     yield "Atualização de políticas forçada."
 
