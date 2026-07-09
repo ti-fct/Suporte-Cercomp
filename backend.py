@@ -113,11 +113,11 @@ def executar_comando_powershell(comando, timeout=180):
         if processo.stdout:
             yield processo.stdout.strip()
         if processo.returncode != 0:
-            yield f"ERRO: Código de retorno {processo.returncode}."
+            yield f"⚠️ ERRO: Código de retorno {processo.returncode}."
             if processo.stderr:
                 yield f"Detalhes: {processo.stderr.strip()}"
     except Exception as e:
-        yield f"ERRO CRÍTICO (PowerShell): {e}"
+        yield f"⚠️ ERRO CRÍTICO (PowerShell): {e}"
 
 def executar_comando_cmd(comando, timeout=180, work_dir=None):
     """Executa um comando no CMD, com opção de diretório de trabalho."""
@@ -136,7 +136,7 @@ def executar_comando_cmd(comando, timeout=180, work_dir=None):
             if processo.stderr:
                 yield f"Saída de erro: {processo.stderr.strip()}"
     except Exception as e:
-        yield f"ERRO CRÍTICO (CMD): {e}"
+        yield f"⚠️ ERRO CRÍTICO (CMD): {e}"
 
 def _listar_usuarios_padrao():
     """
@@ -164,11 +164,11 @@ def _listar_usuarios_padrao():
             timeout=60, check=False, creationflags=subprocess.CREATE_NO_WINDOW
         )
     except Exception as e:
-        return [], f"ERRO CRÍTICO ao listar usuários locais: {e}"
+        return [], f"⚠️ ERRO CRÍTICO ao listar usuários locais: {e}"
 
     if processo.returncode != 0:
         detalhe = processo.stderr.strip() if processo.stderr else "sem detalhes adicionais"
-        return [], f"ERRO CRÍTICO ao listar usuários locais (código {processo.returncode}): {detalhe}"
+        return [], f"⚠️ ERRO CRÍTICO ao listar usuários locais (código {processo.returncode}): {detalhe}"
 
     nomes_brutos = (processo.stdout or "").strip()
     if not nomes_brutos:
@@ -186,7 +186,7 @@ def _listar_usuarios_padrao():
 
 def reiniciar_explorer():
     """Reinicia o processo do Windows Explorer."""
-    yield "Reiniciando parâmetros do sistema..."
+    yield "↩ Reiniciando parâmetros do sistema..."
     yield from executar_comando_powershell(f"RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters ,1 ,True")
     yield "Reiniciando o Windows Explorer..."
     yield from executar_comando_cmd(r"taskkill /F /IM explorer.exe")
@@ -201,7 +201,7 @@ def habilitar_escrita_desktop():
     """
     Restaura a permissão de escrita na Área de Trabalho para os usuários Padrão (não administradores)
     """
-    yield "--- Habilitando Permissão de Escrita no Desktop (usuários padrão) ---"
+    yield "🔓 Habilitando Permissão de Escrita no Desktop (usuários padrão) ---"
     usuarios_padrao, erro = _listar_usuarios_padrao()
     if erro:
         yield erro
@@ -224,7 +224,7 @@ def desabilitar_escrita_desktop():
     """
     Remove a permissão de escrita na Área de Trabalho SOMENTE para os usuários PADRÃO (não administradores) do computador
     """
-    yield "--- Desabilitando Permissão de Escrita no Desktop (usuários padrão) ---"
+    yield "🔒 Desabilitando Permissão de Escrita no Desktop (usuários padrão) ---"
     usuarios_padrao, erro = _listar_usuarios_padrao()
     if erro:
         yield erro
@@ -243,7 +243,7 @@ def desabilitar_escrita_desktop():
     yield from reiniciar_explorer()
 
 def baixar_recursos_necessarios(url_repositorio):
-    """Baixa os arquivos de configuração (GPOs, Tema) do GitHub."""
+    """⬇️ Baixa os arquivos de configuração (GPOs, Tema) do GitHub."""
     arquivos_para_baixar = ["lgpo.exe", "machine.txt", "user.txt", "fct-labs.deskthemepack"]
     yield "Verificando e baixando recursos necessários..."
     
@@ -254,7 +254,7 @@ def baixar_recursos_necessarios(url_repositorio):
         url_arquivo = url_repositorio + arquivo
         caminho_destino = os.path.join(DIRETORIO_APP_DATA, arquivo)
         
-        yield f"Baixando '{arquivo}'..."
+        yield f"⬇ Baixando '{arquivo}'..."
         try:
             with requests.get(url_arquivo, stream=True, timeout=60) as r:
                 r.raise_for_status()
@@ -262,12 +262,12 @@ def baixar_recursos_necessarios(url_repositorio):
                     shutil.copyfileobj(r.raw, f)
         
             if not os.path.exists(caminho_destino) or os.path.getsize(caminho_destino) == 0:
-                yield f"ERRO: '{arquivo}' foi baixado mas está vazio ou corrompido."
+                yield f"⚠️ ERRO: '{arquivo}' foi baixado mas está vazio ou corrompido."
                 return
                 
             yield f"'{arquivo}' baixado com sucesso ({os.path.getsize(caminho_destino)} bytes)."
         except requests.exceptions.RequestException as e:
-            yield f"ERRO CRÍTICO ao baixar '{arquivo}': {e}"
+            yield f"⚠️ ERRO CRÍTICO ao baixar '{arquivo}': {e}"
             return
     
     yield "Download de todos os recursos concluído."
@@ -280,27 +280,27 @@ def gerenciar_widget_desktop(acao, config):
     if acao == 'adicionar':
         url_python_widget = config.get("URL_PYTHON_WIDGET")
         if not url_python_widget:
-            yield "ERRO CRÍTICO: URL para o ambiente Python do widget não configurada."
+            yield "⚠️ ERRO CRÍTICO: URL para o ambiente Python do widget não configurada."
             return
         zip_path = os.path.join(DIRETORIO_APP_DATA, "python_widget_env.zip")
-        yield f"Baixando ambiente Python do widget..."
+        yield f"⬇ Baixando ambiente Python do widget..."
         try:
             with requests.get(url_python_widget, stream=True, timeout=300) as r:
                 r.raise_for_status()
                 with open(zip_path, 'wb') as f: shutil.copyfileobj(r.raw, f)
         except requests.exceptions.RequestException as e:
-            yield f"ERRO CRÍTICO ao baixar o ambiente do widget: {e}"; return
+            yield f"⚠️ ERRO CRÍTICO ao baixar o ambiente do widget: {e}"; return
         yield "Extraindo ambiente Python..."
         try:
             if os.path.exists(DIRETORIO_PYTHON_WIDGET): shutil.rmtree(DIRETORIO_PYTHON_WIDGET)
             with zipfile.ZipFile(zip_path, 'r') as zip_ref: zip_ref.extractall(DIRETORIO_PYTHON_WIDGET)
             os.remove(zip_path)
         except Exception as e:
-            yield f"ERRO CRÍTICO ao extrair o ambiente do widget: {e}"; return
+            yield f"⚠️ ERRO CRÍTICO ao extrair o ambiente do widget: {e}"; return
         if not os.path.exists(pythonw_exe):
-            yield f"ERRO CRÍTICO: 'pythonw.exe' não encontrado após extração."; return
+            yield f"⚠️ ERRO CRÍTICO: 'pythonw.exe' não encontrado após extração."; return
         yield "Ambiente do widget instalado."
-        yield f"Criando script do widget..."
+        yield f"📜Criando script do widget..."
         with open(CAMINHO_SCRIPT_WIDGET, "w", encoding="utf-8") as f: f.write(CONTEUDO_SCRIPT_WIDGET)
         yield "Adicionando à inicialização do Windows..."
         try:
@@ -309,7 +309,7 @@ def gerenciar_widget_desktop(acao, config):
                 winreg.SetValueEx(key, CHAVE_REGISTRO_WIDGET, 0, winreg.REG_SZ, comando_reg)
             yield "Widget configurado para iniciar com o Windows."
         except Exception as e:
-            yield f"ERRO ao registrar na inicialização: {e}"; return
+            yield f"⚠️ ERRO ao registrar na inicialização: {e}"; return
         yield "Finalizando instâncias antigas e iniciando o widget..."
         subprocess.run(comando_finalizar, shell=True, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
         subprocess.Popen([pythonw_exe, CAMINHO_SCRIPT_WIDGET], creationflags=subprocess.CREATE_NO_WINDOW)
@@ -323,36 +323,35 @@ def gerenciar_widget_desktop(acao, config):
                 winreg.DeleteValue(key, CHAVE_REGISTRO_WIDGET)
             yield "Registro de inicialização removido."
         except FileNotFoundError: yield "AVISO: Registro de inicialização não encontrado."
-        except Exception as e: yield f"ERRO ao remover do registro: {e}"
+        except Exception as e: yield f"⚠️ ERRO ao remover do registro: {e}"
         if os.path.exists(CAMINHO_SCRIPT_WIDGET):
             try: os.remove(CAMINHO_SCRIPT_WIDGET); yield "Arquivo de script removido."
-            except OSError as e: yield f"ERRO ao remover arquivo de script: {e}"
+            except OSError as e: yield f"⚠️ ERRO ao remover arquivo de script: {e}"
         if os.path.exists(DIRETORIO_PYTHON_WIDGET):
             try: shutil.rmtree(DIRETORIO_PYTHON_WIDGET); yield "Ambiente Python do widget removido."
-            except OSError as e: yield f"ERRO ao remover diretório do widget: {e}"
+            except OSError as e: yield f"⚠️ ERRO ao remover diretório do widget: {e}"
         yield "Widget removido com sucesso."
 
 def aplicar_tema_fct(caminho_tema):
     """
-    Versão alternativa que aplica o tema usando múltiplas estratégias
-    para detectar o usuário logado.
+    Versão alternativa que aplica o tema usando múltiplas estratégias para detectar o usuário logado.
     """
-    yield "Iniciando aplicação de tema (método alternativo)..."
+    yield "⛺ Iniciando aplicação de tema (método alternativo)..."
 
     # Verificar privilégios de Administrador
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin()
         if not is_admin:
-            yield "ERRO CRÍTICO: Esta função requer privilégios de Administrador."
+            yield "⚠️ ERRO CRÍTICO: Esta função requer privilégios de Administrador."
             return
         yield "Verificação de privilégios de Administrador: OK."
     except Exception as e:
-        yield f"ERRO ao verificar privilégios de Administrador: {e}"
+        yield f"⚠️ ERRO ao verificar privilégios de Administrador: {e}"
         return
 
     # Validação do arquivo de tema
     if not os.path.exists(caminho_tema):
-        yield f"ERRO: Arquivo de tema não encontrado: {caminho_tema}."
+        yield f"⚠️ ERRO: Arquivo de tema não encontrado: {caminho_tema}."
         return
     yield f"Arquivo de tema encontrado: {os.path.basename(caminho_tema)}"
 
@@ -435,7 +434,7 @@ def aplicar_tema_fct(caminho_tema):
             yield "Tema aplicado! A janela de personalização deve abrir."
             return
         except Exception as e:
-            yield f"ERRO ao aplicar tema: {e}"
+            yield f"⚠️ ERRO ao aplicar tema: {e}"
             return
 
     # Aplicar tema com usuário específico
@@ -479,7 +478,7 @@ def aplicar_tema_fct(caminho_tema):
         Start-Sleep -Seconds 7
 
     }} catch {{
-        Write-Error "ERRO CRÍTICO ao aplicar tema: $($_.Exception.Message)"
+        Write-Error "⚠️ ERRO CRÍTICO ao aplicar tema: $($_.Exception.Message)"
         exit 1
     }}
     """
@@ -512,7 +511,7 @@ def aplicar_gpos_fct(caminho_base_gpo):
     ]
     yield "Verificando arquivos de GPO necessários..."
     if not all(os.path.exists(p) for p in arquivos_necessarios):
-        yield f"ERRO: Arquivos de GPO não encontrados em {caminho_base_gpo}."
+        yield f"⚠️ ERRO: Arquivos de GPO não encontrados em {caminho_base_gpo}."
         return
     
     diretorio_original = os.getcwd()
@@ -524,7 +523,7 @@ def aplicar_gpos_fct(caminho_base_gpo):
         yield from executar_comando_cmd(r"lgpo.exe /t user.txt")
         yield "Comandos de aplicação de GPOs da FCT enviados."
     except Exception as e:
-        yield f"ERRO ao executar aplicação de GPO: {e}"
+        yield f"⚠️ ERRO ao executar aplicação de GPO: {e}"
     finally:
         os.chdir(diretorio_original)
 
@@ -535,38 +534,38 @@ def iniciar_limpeza_sistema(url_ferramenta):
     tool_dir = os.path.join(base_dir, "BleachBit")
     zip_path = os.path.join(base_dir, "BleachBit.zip")
     try:
-        yield f"Baixando BleachBit para {base_dir}..."
+        yield f"⬇️ Baixando BleachBit para {base_dir}..."
         with requests.get(url_ferramenta, stream=True, timeout=300) as r:
             r.raise_for_status()
             with open(zip_path, 'wb') as f: shutil.copyfileobj(r.raw, f)
-        yield f"Extraindo para {tool_dir}..."
+        yield f"📂 Extraindo para {tool_dir}..."
         if os.path.exists(tool_dir): shutil.rmtree(tool_dir)
         with zipfile.ZipFile(zip_path, 'r') as zip_ref: zip_ref.extractall(tool_dir)
-        yield "Procurando por bleachbit_console.exe..."
+        yield "🔍 Procurando por bleachbit_console.exe..."
         caminho_executavel = next((os.path.join(r, f) for r, _, fs in os.walk(tool_dir) for f in fs if f == "bleachbit_console.exe"), None)
         if not caminho_executavel:
-            yield "ERRO: bleachbit_console.exe não encontrado após a extração."; return
+            yield "⚠️ ERRO: bleachbit_console.exe não encontrado após a extração."; return
         yield f"Executável encontrado: {caminho_executavel}"
-        yield "Listando limpadores disponíveis..."
+        yield "🧹 Listando limpadores disponíveis..."
         list_process = subprocess.run([caminho_executavel, "--list-cleaners"], capture_output=True, text=True, check=True)
         all_cleaners = list_process.stdout.split()
         cleaners_to_run = [c for c in all_cleaners if not c.startswith("deep_scan.") and c != "system.free_disk_space"]
         yield f"{len(cleaners_to_run)} limpadores selecionados. AVISO: A limpeza pode demorar."
-        yield "Executando limpeza com BleachBit..."
-        yield "Apagando arquivos da pasta Music..."
+        yield "🧹 Executando limpeza com BleachBit..."
+        yield "🧹 Apagando arquivos da pasta Music..."
         comandoLimparPastaMusic = r"""Remove-Item -Path "C:\Users\Aluno\Music\*" -Recurse -Force -ErrorAction SilentlyContinue"""
         yield from executar_comando_powershell(comandoLimparPastaMusic)
         subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=600)
-        yield "Limpeza completa concluída!"
+        yield "🧹 Limpeza completa concluída!"
     except Exception as e:
-        yield f"ERRO durante a limpeza: {e}"
+        yield f"⚠️ ERRO durante a limpeza: {e}"
     finally:
         if os.path.exists(tool_dir): shutil.rmtree(tool_dir, ignore_errors=True)
         if os.path.exists(zip_path): os.remove(zip_path)
 
 def renomear_computador(novo_nome):
     """Altera o nome do computador no sistema."""
-    yield f"Tentando alterar o nome para '{novo_nome}'..."
+    yield f"💻Tentando alterar o nome para '{novo_nome}'..."
     yield from executar_comando_powershell(f'Rename-Computer -NewName "{novo_nome}" -Force -ErrorAction Stop')
     yield "Nome alterado! É necessário reiniciar para aplicar."
 
@@ -582,7 +581,7 @@ def restaurar_gpos_padrao():
                 shutil.rmtree(path)
                 yield f"Removido: {path}"
             except Exception as e:
-                yield f"ERRO ao remover {path}: {e}"
+                yield f"⚠️ ERRO ao remover {path}: {e}"
     yield from executar_comando_cmd("gpupdate /force", timeout=300)
     yield "Restauração das GPOs padrão concluída."
 
@@ -598,7 +597,7 @@ def resetar_microsoft_store():
 
 def ajustar_melhor_desempenho():
     """Habilitar a opção Ajustar para obter o melhor desempenho dentro de configurações avançadas e desativar serviços do Xbox."""
-    yield "Iniciando ajuste para melhor desempenho..."
+    yield "⚙ Iniciando ajuste para melhor desempenho..."
     comando = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name VisualFXSetting -Value 2"""
     yield from executar_comando_powershell(comando)
     yield "Comando de melhorar desempenho enviado."
@@ -698,7 +697,7 @@ def forcar_atualizacao_gpos():
 
 def limpar_pastas_usuario():
     """Limpa as pastas Desktop e Downloads do usuário, lidando com acentos."""
-    yield "Iniciando limpeza de pastas do usuário..."
+    yield "🧹 Iniciando limpeza de pastas do usuário..."
     temp_file = os.path.join(os.environ['TEMP'], 'current_user.tmp')
     # Comando PowerShell para salvar o nome de usuário em um arquivo com codificação UTF-8
     comando_ps = f"(Get-CimInstance -ClassName Win32_ComputerSystem).Username | Out-File -FilePath '{temp_file}' -Encoding utf8 -NoNewline"
@@ -712,14 +711,14 @@ def limpar_pastas_usuario():
 
         # Lê o nome do usuário do arquivo com a codificação correta
         if not os.path.exists(temp_file):
-            yield "ERRO: Arquivo temporário de usuário não foi criado."
+            yield "⚠️ ERRO: Arquivo temporário de usuário não foi criado."
             return
             
         with open(temp_file, 'r', encoding='utf-8') as f:
             nome_usuario_completo = f.read().strip()
 
         if not nome_usuario_completo:
-            yield "ERRO: Não foi possível determinar o usuário logado."
+            yield "⚠️ ERRO: Não foi possível determinar o usuário logado."
             return
         
         nome_usuario = nome_usuario_completo.split('\\')[-1]
@@ -749,15 +748,15 @@ def limpar_pastas_usuario():
                         shutil.rmtree(caminho_completo)
                     yield f"Item removido: {item}"
                 except Exception as e:
-                    yield f"ERRO ao remover '{item}': {e}"
+                    yield f"⚠️ ERRO ao remover '{item}': {e}"
             yield f"Limpeza da pasta {nome_pasta} concluída."
 
     except subprocess.CalledProcessError as e:
-        yield f"ERRO CRÍTICO ao obter nome do usuário: {e}"
+        yield f"⚠️ ERRO CRÍTICO ao obter nome do usuário: {e}"
         if e.stderr:
             yield f"Detalhes do erro do PowerShell: {e.stderr.decode('utf-8', 'ignore')}"
     except Exception as e:
-        yield f"ERRO CRÍTICO ao limpar pastas do usuário: {e}"
+        yield f"⚠️ ERRO CRÍTICO ao limpar pastas do usuário: {e}"
     finally:
         # Garante que o arquivo temporário seja sempre removido
         if os.path.exists(temp_file):
