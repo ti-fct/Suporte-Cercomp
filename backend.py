@@ -292,21 +292,30 @@ def baixar_recursos_necessarios(url_repositorio):
     """Baixa os arquivos de configuração (GPOs, Tema) do GitHub."""
     arquivos_para_baixar = ["lgpo.exe", "machine.txt", "user.txt", "fct-labs.deskthemepack"]
     yield "Verificando e baixando recursos necessários..."
+    
     if not url_repositorio.endswith('/'):
         url_repositorio += '/'
+    
     for arquivo in arquivos_para_baixar:
         url_arquivo = url_repositorio + arquivo
         caminho_destino = os.path.join(DIRETORIO_APP_DATA, arquivo)
+        
         yield f"Baixando '{arquivo}'..."
         try:
             with requests.get(url_arquivo, stream=True, timeout=60) as r:
                 r.raise_for_status()
                 with open(caminho_destino, 'wb') as f:
                     shutil.copyfileobj(r.raw, f)
-            yield f"'{arquivo}' baixado com sucesso."
+        
+            if not os.path.exists(caminho_destino) or os.path.getsize(caminho_destino) == 0:
+                yield f"ERRO: '{arquivo}' foi baixado mas está vazio ou corrompido."
+                return
+                
+            yield f"'{arquivo}' baixado com sucesso ({os.path.getsize(caminho_destino)} bytes)."
         except requests.exceptions.RequestException as e:
             yield f"ERRO CRÍTICO ao baixar '{arquivo}': {e}"
             return
+    
     yield "Download de todos os recursos concluído."
 
 def gerenciar_widget_desktop(acao, config):
@@ -529,7 +538,11 @@ def aplicar_tema_fct(caminho_tema):
     yield "Se a janela 'Personalização' abrir, pode fechá-la."
     
     yield "Desativando luz noturna..."
-    comandoDesativarLuzNoturna = r"""Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount\$$windows.data.bluelightreduction.bluelightreductionstate" -Name Data -Value 0"""
+    comandoDesativarLuzNoturna = r"""
+    $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount\`$`$windows.data.bluelightreduction.bluelightreductions\Default"
+    if (Test-Path $path) {
+        Set-ItemProperty -Path $path -Name Data -Value ([byte[]](0x00)) -ErrorAction SilentlyContinue
+    }"""
     yield from executar_comando_powershell(comandoDesativarLuzNoturna)
 
     yield "Definindo wallpaper para 'Ajustar'..."
