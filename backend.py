@@ -6,6 +6,8 @@ import zipfile
 import winreg
 import time
 import ctypes
+import ftplib
+from urllib.parse import urlparse
 
 # --- Constantes de Configuração ---
 DIRETORIO_APP_DATA = r"C:\ProgramData\Suporte-Cercomp"
@@ -15,6 +17,7 @@ CAMINHO_SCRIPT_WIDGET = os.path.join(DIRETORIO_APP_DATA, "AvisoDesktop.pyw")
 DIRETORIO_PYTHON_WIDGET = os.path.join(DIRETORIO_APP_DATA, "python_widget_env")
 REGISTRO_WIDGET = r"Software\Microsoft\Windows\CurrentVersion\Run"
 CHAVE_REGISTRO_WIDGET = "FCT_UFG_DesktopInfo"
+FTP_ANTIVIRUS_APEX = "ftp://ftp.suporte.cercomp.ufg.br/Antivirus 2025/TMStandardAgent_Windows_x86_64_Windows"
 
 # ... (O CONTEUDO_SCRIPT_WIDGET permanece o mesmo) ...
 CONTEUDO_SCRIPT_WIDGET = """
@@ -662,6 +665,133 @@ def iniciar_limpeza_sistema(url_ferramenta):
         if os.path.exists(tool_dir): shutil.rmtree(tool_dir, ignore_errors=True)
         if os.path.exists(zip_path): os.remove(zip_path)
 
+def _verificar_antivirus_apex_instalado():
+    """
+    Verifica no Registro do Windows se o antivírus Apex (Trend Micro) já está instalado.
+    Usa o Registro em vez de 'Get-WmiObject Win32_Product', pois essa classe WMI é
+    extremamente lenta e, como efeito colateral, força uma reconfiguração (reparo)
+    de todos os pacotes MSI instalados na máquina toda vez que é consultada.
+    """
+    caminhos_uninstall = [
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+    ]
+    for hive, caminho in caminhos_uninstall:
+        try:
+            with winreg.OpenKey(hive, caminho) as chave_raiz:
+                indice = 0
+                while True:
+                    try:
+                        subchave_nome = winreg.EnumKey(chave_raiz, indice)
+                    except OSError:
+                        break
+                    indice += 1
+                    try:
+                        with winreg.OpenKey(chave_raiz, subchave_nome) as subchave:
+                            nome_exibicao, _ = winreg.QueryValueEx(subchave, "DisplayName")
+                            if nome_exibicao and "apex" in nome_exibicao.lower():
+                                return True, nome_exibicao
+                    except (FileNotFoundError, OSError):
+                        continue
+        except FileNotFoundError:
+            continue
+    return False, None
+
+def _baixar_pasta_ftp(ftp, caminho_ftp, caminho_local):
+    """
+    Baixa recursivamente uma pasta (e subpastas) de um servidor FTP usando ftplib
+    (biblioteca nativa do Python), evitando a necessidade de abrir uma sessão de
+    PowerShell separada só para lidar com FTP.
+    """
+    os.makedirs(caminho_local, exist_ok=True)
+    linhas = []
+    try:
+        ftp.retrlines(f"LIST {caminho_ftp}", linhas.append)
+    except ftplib.error_perm as e:
+        yield f"⚠️ ERRO ao listar '{caminho_ftp}': {e}"
+        return
+
+    for linha in linhas:
+        # Formato padrão Unix do LIST: permissões, links, dono, grupo, tamanho, mês, dia, hora/ano, nome
+        partes = linha.split(maxsplit=8)
+        if len(partes) < 9:
+            continue
+        nome = partes[8]
+        if nome in (".", ".."):
+            continue
+
+        eh_pasta = linha.upper().startswith("D")
+        caminho_item_ftp = f"{caminho_ftp}/{nome}"
+        caminho_item_local = os.path.join(caminho_local, nome)
+
+        if eh_pasta:
+            yield f"📁 Entrando na pasta '{nome}'..."
+            yield from _baixar_pasta_ftp(ftp, caminho_item_ftp, caminho_item_local)
+        else:
+            yield f"⬇ Baixando arquivo '{nome}'..."
+            try:
+                with open(caminho_item_local, "wb") as f:
+                    ftp.retrbinary(f"RETR {caminho_item_ftp}", f.write)
+            except Exception as e:
+                yield f"⚠️ ERRO ao baixar '{nome}': {e}"
+
+def instalar_antivirus_apex():
+#def instalar_antivirus_apex(config):
+    """
+    🛡️ Baixa (via FTP) e executa o instalador do antivírus Apex
+    (Trend Micro)
+    """
+    yield "🛡️ Verificando se o antivírus Apex já está instalado..."
+    ja_instalado, nome_encontrado = _verificar_antivirus_apex_instalado()
+    if ja_instalado:
+        yield f"✅ Antivírus já instalado ({nome_encontrado}). Instalação não será executada."
+        return
+
+    ftp_url = FTP_ANTIVIRUS_APEX
+    if not ftp_url:
+        yield "⚠️ ERRO CRÍTICO: URL do FTP do antivírus Apex não configurada (FTP_ANTIVIRUS_APEX)."
+        return
+
+    partes_url = urlparse(ftp_url)
+    if partes_url.scheme != "ftp" or not partes_url.hostname:
+        yield "⚠️ ERRO CRÍTICO: FTP_ANTIVIRUS_APEX deve estar no formato 'ftp://servidor/caminho'."
+        return
+
+    servidor_ftp = partes_url.hostname
+    caminho_raiz_ftp = (partes_url.path or "/").rstrip("/")
+    nome_pasta = os.path.basename(caminho_raiz_ftp) or "TMStandardAgent"
+    destino_raiz = os.path.join(DIRETORIO_APP_DATA, nome_pasta)
+    caminho_exe = os.path.join(destino_raiz, "EndpointBasecamp.exe")
+
+    yield f"📡 Conectando ao servidor FTP '{servidor_ftp}'..."
+    try:
+        ftp = ftplib.FTP(servidor_ftp, timeout=60)
+        ftp.login()  # login anônimo, como no script original
+    except Exception as e:
+        yield f"⚠️ ERRO CRÍTICO ao conectar ao FTP: {e}"
+        return
+
+    try:
+        yield "⬇️ Iniciando download dos arquivos do antivírus..."
+        yield from _baixar_pasta_ftp(ftp, caminho_raiz_ftp, destino_raiz)
+        yield "Download concluído."
+    finally:
+        try:
+            ftp.quit()
+        except Exception:
+            pass
+
+    if not os.path.exists(caminho_exe):
+        yield f"⚠️ ERRO CRÍTICO: 'EndpointBasecamp.exe' não encontrado em '{destino_raiz}'."
+        return
+
+    yield "🚀 Executando o instalador do antivírus Apex..."
+    try:
+        subprocess.Popen([caminho_exe], cwd=destino_raiz)
+        yield "Instalador iniciado com sucesso."
+    except Exception as e:
+        yield f"⚠️ ERRO CRÍTICO ao executar o instalador: {e}"
+
 def renomear_computador(novo_nome):
     """Altera o nome do computador no sistema."""
     yield f"💻Tentando alterar o nome para '{novo_nome}'..."
@@ -727,7 +857,7 @@ def ajustar_melhor_desempenho():
     yield "Desativando serviços adicionais..."
     for s in ["WpcSvc", "WpcMonSvc", "DiagTrack", "DusmSvc", "GameInputSvc", "ScPolicySvc", "WbioSrvc", "BDESVC", "SCardSvr", "icssvc", "WerSvc", "SensorService", "PhoneSvc", "SysMain"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
-    yield "Todos os serviços adicionais foram desativados com sucesso."
+    yield "Todos os serviços adicionais foram desativados com sucesso."    
 
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
@@ -805,25 +935,27 @@ def limpar_pastas_usuario():
 def manutencao_preventiva_1_click(config):
     """Executa uma sequência de tarefas de manutenção preventiva."""
     yield "--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---"
-    yield "\nPASSO 1/10: Baixando recursos da FCT..."
+    yield "\nPASSO 1/11: Baixando recursos da FCT..."
     yield from baixar_recursos_necessarios(config['URL_REPOSITORIO_FCT'])
-    yield "\nPASSO 2/10: Restaurando GPOs Padrão..."
+    yield "\nPASSO 2/11: Restaurando GPOs Padrão..."
     yield from restaurar_gpos_padrao()
-    yield "\nPASSO 3/10: Forçando Atualização de GPOs..."
+    yield "\nPASSO 3/11: Forçando Atualização de GPOs..."
     yield from forcar_atualizacao_gpos()
-    yield "\nPASSO 4/10: Limpeza Geral do Sistema..."
+    yield "\nPASSO 4/11: Limpeza Geral do Sistema..."
     yield from iniciar_limpeza_sistema(config['URL_BLEACHBIT'])
-    yield "\nPASSO 5/10: Limpando pastas do Usuário..."
+    yield "\nPASSO 5/11: Limpando pastas do Usuário..."
     yield from limpar_pastas_usuario()
-    yield "\nPASSO 6/10: Aplicando Tema Visual da FCT..."
+    yield "\nPASSO 6/11: Aplicando Tema Visual da FCT..."
     yield from aplicar_tema_fct(config['CAMINHO_TEMA'])
-    yield "\nPASSO 7/10: Aplicando GPOs da FCT..."
+    yield "\nPASSO 7/11: Aplicando GPOs da FCT..."
     yield from aplicar_gpos_fct(config['CAMINHO_BASE_GPO'])
-    yield "\nPASSO 8/10: Forçando atualização de GPO novamente..."
+    yield "\nPASSO 8/11: Forçando atualização de GPO novamente..."
+    yield from instalar_antivirus_apex()
+    yield "\nPASSO 9/11: Verificando antivirus..."
     yield from forcar_atualizacao_gpos()
-    yield "\nPASSO 9/10: Resetando a Microsoft Store..."
+    yield "\nPASSO 10/11: Resetando a Microsoft Store..."
     yield from resetar_microsoft_store()
-    yield "\nPASSO 10/10: Habilitando ajuste de desempenho..."
+    yield "\nPASSO 11/11: Habilitando ajuste de desempenho..."
     yield from ajustar_melhor_desempenho()
     yield "\n--- MANUTENÇÃO PREVENTIVA CONCLUÍDA ---"
     yield "É recomendado reiniciar o computador para que todas as alterações tenham efeito."

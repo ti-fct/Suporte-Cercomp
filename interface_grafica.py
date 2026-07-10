@@ -24,7 +24,7 @@ from backend import (
     restaurar_gpos_padrao, forcar_atualizacao_gpos, resetar_microsoft_store,
     iniciar_limpeza_sistema, gerenciar_widget_desktop,
     manutencao_preventiva_1_click, baixar_recursos_necessarios,
-    habilitar_escrita_desktop, desabilitar_escrita_desktop, ajustar_melhor_desempenho
+    habilitar_escrita_desktop, desabilitar_escrita_desktop, ajustar_melhor_desempenho, instalar_antivirus_apex
 )
 
 # Constante com a versão atual do software
@@ -270,6 +270,7 @@ class JanelaPrincipal(QMainWindow):
             ("Aplicar Tema FCT", 'fa5s.palette', lambda: self.executar_tarefa(aplicar_tema_fct, self.config['CAMINHO_TEMA'])),
             ("Restaurar GPOs Padrão", 'fa5s.undo-alt', lambda: self.executar_com_confirmacao(restaurar_gpos_padrao, "Restaurar GPOs?", "Isso removerá todas as políticas locais.")),
             ("Forçar Atualização de GPOs", 'fa5s.sync-alt', lambda: self.executar_tarefa(forcar_atualizacao_gpos)),
+            ("Verificar/Instalar Antivirus", 'fa5s.user-shield', lambda: self.executar_tarefa(instalar_antivirus_apex)),
             ("Resetar Microsoft Store", 'fa5s.store-alt', lambda: self.executar_tarefa(resetar_microsoft_store)),
             ("Ajustar Melhor Desempenho", 'fa5s.cogs', lambda: self.executar_tarefa(ajustar_melhor_desempenho)),
             ("Limpeza Geral do Sistema", 'fa5s.broom', lambda: self.executar_tarefa(iniciar_limpeza_sistema, self.config['URL_BLEACHBIT'])),
@@ -305,6 +306,12 @@ class JanelaPrincipal(QMainWindow):
         ))
         layout.addWidget(btn_desabilitar_escrita)
         self.botoes_acao.append(btn_desabilitar_escrita)
+
+        btn_verificar_antivirus = QPushButton(" Verificar/Instalar Antivirus")
+        btn_verificar_antivirus.setIcon(qta.icon('fa5s.user-shield', color='#FFFFFF'))
+        btn_verificar_antivirus.clicked.connect(lambda: self.executar_tarefa(instalar_antivirus_apex))
+        layout.addWidget(btn_verificar_antivirus)
+        self.botoes_acao.append(btn_verificar_antivirus)
 
         layout.addSpacing(15)
         titulo_aviso = QLabel("Aviso de Desktop")
@@ -427,7 +434,7 @@ class JanelaPrincipal(QMainWindow):
     def executar_renomear_computador(self):
         nome_atual = socket.gethostname()
         novo_nome, ok = QInputDialog.getText(self, "Alterar Nome do Computador",
-                                              f"Nome atual: {nome_atual}\n\nDigite o novo nome:",
+                                              f"Nome atual: {nome_atual}\n\nDigite o novo nome: Patrimonio-DEPARTAMENTO",
                                               text=nome_atual)
         if ok and novo_nome and novo_nome.strip() and novo_nome != nome_atual:
             if 1 <= len(novo_nome) <= 15 and novo_nome.replace('-', '').isalnum():
