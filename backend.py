@@ -654,10 +654,25 @@ def iniciar_limpeza_sistema(url_ferramenta):
         cleaners_to_run = [c for c in all_cleaners if not c.startswith("deep_scan.") and c != "system.free_disk_space"]
         yield f"{len(cleaners_to_run)} limpadores selecionados. AVISO: A limpeza pode demorar."
         yield "🧹 Executando limpeza com BleachBit..."
-        yield "🧹 Apagando arquivos da pasta Music..."
-        comandoLimparPastaMusic = r"""Remove-Item -Path "C:\Users\Aluno\Music\*" -Recurse -Force -ErrorAction SilentlyContinue"""
-        yield from executar_comando_powershell(comandoLimparPastaMusic)
         subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=600)
+        
+        yield "🧹 Apagando arquivos das pastas Temp e %Temp%..."
+        yield from executar_comando_powershell(r"""Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue""")
+        yield from executar_comando_powershell(r"""Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue""")
+
+        yield "🧹 Apagando arquivos da pasta Recent..."
+        yield from executar_comando_powershell(r"""Remove-Item -Path "$env:APPDATA\Microsoft\Windows\Recent\*" -Recurse -Force -ErrorAction SilentlyContinue""")
+
+        yield "🧹 Apagando arquivos da pasta Prefetch..."
+        yield from executar_comando_powershell(r"""Remove-Item -Path "C:\Windows\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue""")
+
+        yield "🗑️ Esvaziando a Lixeira..."
+        yield from executar_comando_powershell(r"""Clear-RecycleBin -Force""")
+
+        # 🔹 Executar Cleanmgr com todas as opções
+        yield "💾 Liberando espaço em disco com Cleanmgr..."
+        yield from executar_comando_cmd("cleanmgr /sagerun:1", timeout=600)
+        
         yield "🧹 Limpeza completa concluída!"
     except Exception as e:
         yield f"⚠️ ERRO durante a limpeza: {e}"
