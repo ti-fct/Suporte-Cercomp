@@ -629,6 +629,19 @@ def aplicar_gpos_fct(caminho_base_gpo):
     finally:
         os.chdir(diretorio_original)
 
+    # Verificação do Mesh Agent
+    mesh_agent_path = r"C:\Program Files\Mesh Agent\MeshAgent.exe"
+    if not os.path.exists(mesh_agent_path):
+        # Exibe caixa de mensagem informando ausência do Mesh Agent
+        ctypes.windll.user32.MessageBoxW(
+            0,
+            "O Mesh Agent não está instalado neste computador.\nPor favor, instale o Mesh Agent antes de aplicar as GPOs.",
+            "Aviso - Mesh Agent",
+            0x40  # Ícone de informação
+        )
+        yield "⚠️ ERRO: Mesh Agent não encontrado."
+        
+
 def iniciar_limpeza_sistema(url_ferramenta):
     """Baixa e executa o BleachBit para limpeza geral do sistema."""
     # O diretório base agora é o mesmo da aplicação
@@ -655,7 +668,7 @@ def iniciar_limpeza_sistema(url_ferramenta):
         yield f"{len(cleaners_to_run)} limpadores selecionados. AVISO: A limpeza pode demorar."
         yield "🧹 Executando limpeza com BleachBit..."
         subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=600)
-        
+
         yield "🧹 Apagando arquivos das pastas Temp e %Temp%..."
         yield from executar_comando_powershell(r"""Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue""")
         yield from executar_comando_powershell(r"""Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue""")
@@ -826,7 +839,7 @@ def restaurar_gpos_padrao():
                 yield f"Removido: {path}"
             except Exception as e:
                 yield f"⚠️ ERRO ao remover {path}: {e}"
-    yield from executar_comando_cmd("gpupdate /force", timeout=300)
+    yield from executar_comando_cmd("gpupdate /force", timeout=120)
     yield "Restauração das GPOs padrão concluída."
 
 def resetar_microsoft_store():
