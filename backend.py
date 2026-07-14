@@ -885,12 +885,25 @@ def ajustar_melhor_desempenho():
     yield "Desativando serviços adicionais..."
     for s in ["WpcSvc", "WpcMonSvc", "DiagTrack", "DusmSvc", "GameInputSvc", "ScPolicySvc", "WbioSrvc", "BDESVC", "SCardSvr", "icssvc", "WerSvc", "SensorService", "PhoneSvc", "SysMain"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
+    
+    yield "Desativando opções do menu Iniciar..."
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackProgs 0')
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackDocs 0')
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackEnabled 0')
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowRecentDocs 0')
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_NotifyNewApps 0')
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowFrequentPrograms 0')
+    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowRecommendations 0')
+    yield "Todas as opções do menu Iniciar foram desativadas conforme configuração desejada."
+
+    yield "Abrindo o Windows Update..."
+    yield from cmd("start ms-settings:windowsupdate", timeout=60)
     yield "Todos os serviços adicionais foram desativados com sucesso."    
 
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
     yield "Forçando atualização das Políticas de Grupo (GPOs)..."
-    yield from executar_comando_cmd("gpupdate /force", timeout=300)
+    yield from executar_comando_cmd("gpupdate /force", timeout=180)
     yield "Tentativa de atualização de GPO concluída."
 
 def limpar_pastas_usuario():
