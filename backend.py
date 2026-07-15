@@ -4,7 +4,6 @@ import shutil
 import requests
 import zipfile
 import winreg
-import time
 import ctypes
 import ftplib
 from urllib.parse import urlparse
@@ -666,11 +665,11 @@ def iniciar_limpeza_sistema(url_ferramenta):
         cleaners_to_run = [c for c in all_cleaners if not c.startswith("deep_scan.") and c != "system.free_disk_space"]
         yield f"{len(cleaners_to_run)} limpadores selecionados. AVISO: A limpeza pode demorar."
 
-        # 🔹 Executar BleachBit
+        # Executar BleachBit
         yield "🧹 Executando limpeza com BleachBit..."
         subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=600)
 
-        # 🔹 Limpeza manual em todos os usuários padrão
+        # Limpeza manual em todos os usuários padrão
         usuarios = ["UFG", "Aluno", "Usuário"]
         for usuario in usuarios:
             yield f"🧹 Limpando pastas do usuário {usuario}..."
@@ -678,15 +677,12 @@ def iniciar_limpeza_sistema(url_ferramenta):
 
             yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\AppData\Local\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue')
             yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\AppData\Roaming\Microsoft\Windows\Recent\*" -Recurse -Force -ErrorAction SilentlyContinue')
-            yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\Music\*" -Recurse -Force -ErrorAction SilentlyContinue')
             yield from executar_comando_powershell(fr'Clear-RecycleBin -Force -ErrorAction SilentlyContinue')
 
-        # 🔹 Limpeza global
         yield "🧹 Apagando arquivos das pastas Temp e Prefetch globais..."
         yield from executar_comando_powershell(r'Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue')
         yield from executar_comando_powershell(r'Remove-Item -Path "C:\Windows\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue')
 
-        # 🔹 Executar Cleanmgr com todas as opções
         yield "💾 Liberando espaço em disco com Cleanmgr..."
         yield from executar_comando_cmd("cleanmgr /sagerun:1", timeout=600)
 
@@ -731,9 +727,7 @@ def _verificar_antivirus_apex_instalado():
 
 def _baixar_pasta_ftp(ftp, caminho_ftp, caminho_local):
     """
-    Baixa recursivamente uma pasta (e subpastas) de um servidor FTP usando ftplib
-    (biblioteca nativa do Python), evitando a necessidade de abrir uma sessão de
-    PowerShell separada só para lidar com FTP.
+    Baixa recursivamente uma pasta (e subpastas) de um servidor FTP.
     """
     os.makedirs(caminho_local, exist_ok=True)
     linhas = []
@@ -768,10 +762,8 @@ def _baixar_pasta_ftp(ftp, caminho_ftp, caminho_local):
                 yield f"⚠️ ERRO ao baixar '{nome}': {e}"
 
 def instalar_antivirus_apex():
-#def instalar_antivirus_apex(config):
     """
-    🛡️ Baixa (via FTP) e executa o instalador do antivírus Apex
-    (Trend Micro)
+    🛡️ Baixa (via FTP) e executa o instalador do antivírus Apex (Trend Micro)
     """
     yield "🛡️ Verificando se o antivírus Apex já está instalado..."
     ja_instalado, nome_encontrado = _verificar_antivirus_apex_instalado()
@@ -887,26 +879,26 @@ def ajustar_melhor_desempenho():
         yield from ps(r'reg unload HKU\TempHive')
         yield f"Configurações aplicadas para o usuário {usuario}."
 
-    # 🔹 Ajustes globais (HKLM)
+    # Ajustes globais (HKLM)
     yield "Ajustando prioridade de I/O do sistema..."
     yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl Win32PrioritySeparation 24')
 
     yield "Aumentando tamanho do cache de disco..."
     yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters MaxRawWorkItems 512')
 
-    # 🔹 Desativar serviços do Xbox
+    # Desativar serviços do Xbox
     yield "Desativando serviços do Xbox..."
     for s in ["XboxGipSvc", "XboxNetApiSvc", "XblAuthManager", "XblGameSave"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
     yield "Serviços do Xbox desativados com sucesso."
 
-    # 🔹 Desativar serviços adicionais
+    # Desativar serviços adicionais
     yield "Desativando serviços adicionais..."
     for s in ["WpcSvc", "WpcMonSvc", "DiagTrack", "DusmSvc", "GameInputSvc", "ScPolicySvc", "WbioSrvc", "BDESVC", "SCardSvr", "icssvc", "WerSvc", "SensorService", "PhoneSvc", "SysMain"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
     yield "Todos os serviços adicionais foram desativados com sucesso."
 
-    # 🔹 Abrir Windows Update ao final
+    # Abrir Windows Update ao final
     yield "Abrindo o Windows Update..."
     yield from cmd("start ms-settings:windowsupdate", timeout=60)
     yield "✅ Ajuste completo concluído!"
