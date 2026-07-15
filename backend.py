@@ -643,8 +643,7 @@ def aplicar_gpos_fct(caminho_base_gpo):
         
 
 def iniciar_limpeza_sistema(url_ferramenta):
-    """Baixa e executa o BleachBit para limpeza geral do sistema."""
-    # O diretório base agora é o mesmo da aplicação
+    """Baixa e executa o BleachBit para limpeza geral do sistema + limpeza manual de pastas e disco em todos os usuários padrão."""
     base_dir = DIRETORIO_APP_DATA
     tool_dir = os.path.join(base_dir, "BleachBit")
     zip_path = os.path.join(base_dir, "BleachBit.zip")
@@ -666,27 +665,32 @@ def iniciar_limpeza_sistema(url_ferramenta):
         all_cleaners = list_process.stdout.split()
         cleaners_to_run = [c for c in all_cleaners if not c.startswith("deep_scan.") and c != "system.free_disk_space"]
         yield f"{len(cleaners_to_run)} limpadores selecionados. AVISO: A limpeza pode demorar."
+
+        # 🔹 Executar BleachBit
         yield "🧹 Executando limpeza com BleachBit..."
         subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=600)
 
-        yield "🧹 Apagando arquivos das pastas Temp e %Temp%..."
-        yield from executar_comando_powershell(r"""Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue""")
-        yield from executar_comando_powershell(r"""Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue""")
+        # 🔹 Limpeza manual em todos os usuários padrão
+        usuarios = ["UFG", "Aluno", "Usuário"]
+        for usuario in usuarios:
+            yield f"🧹 Limpando pastas do usuário {usuario}..."
+            user_dir = fr"C:\Users\{usuario}"
 
-        yield "🧹 Apagando arquivos da pasta Recent..."
-        yield from executar_comando_powershell(r"""Remove-Item -Path "$env:APPDATA\Microsoft\Windows\Recent\*" -Recurse -Force -ErrorAction SilentlyContinue""")
+            yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\AppData\Local\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue')
+            yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\AppData\Roaming\Microsoft\Windows\Recent\*" -Recurse -Force -ErrorAction SilentlyContinue')
+            yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\Music\*" -Recurse -Force -ErrorAction SilentlyContinue')
+            yield from executar_comando_powershell(fr'Clear-RecycleBin -Force -ErrorAction SilentlyContinue')
 
-        yield "🧹 Apagando arquivos da pasta Prefetch..."
-        yield from executar_comando_powershell(r"""Remove-Item -Path "C:\Windows\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue""")
-
-        yield "🗑️ Esvaziando a Lixeira..."
-        yield from executar_comando_powershell(r"""Clear-RecycleBin -Force""")
+        # 🔹 Limpeza global
+        yield "🧹 Apagando arquivos das pastas Temp e Prefetch globais..."
+        yield from executar_comando_powershell(r'Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue')
+        yield from executar_comando_powershell(r'Remove-Item -Path "C:\Windows\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue')
 
         # 🔹 Executar Cleanmgr com todas as opções
         yield "💾 Liberando espaço em disco com Cleanmgr..."
         yield from executar_comando_cmd("cleanmgr /sagerun:1", timeout=600)
-        
-        yield "🧹 Limpeza completa concluída!"
+
+        yield "✅ Limpeza completa concluída!"
     except Exception as e:
         yield f"⚠️ ERRO durante a limpeza: {e}"
     finally:
@@ -853,52 +857,59 @@ def resetar_microsoft_store():
     yield "Comando de re-registro enviado."
 
 def ajustar_melhor_desempenho():
-    """Habilitar a opção Ajustar para obter o melhor desempenho dentro de configurações avançadas e desativar serviços do Xbox."""
+    """Habilitar a opção Ajustar para obter o melhor desempenho, desativar serviços e aplicar configurações nos usuários padrão."""
     ps, cmd = executar_comando_powershell, executar_comando_cmd
-    
+
     yield "Iniciando ajuste para melhor desempenho..."
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects VisualFXSetting 2')
-    yield "Comando de melhorar desempenho enviado.\nConfira nas configurações avançadas."
-    yield from cmd("sysdm.cpl ,3", timeout=120)
-    yield "Limpando o cache DNS."
-    yield from cmd("ipconfig /flushdns", timeout=120)
-    yield "Desativando tela de boas-vindas..."
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-310093Enabled 0')
-    yield "Desativando animações no menu Iniciar..."
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced TaskbarAnimations 0')
-    yield "Desativando transições de janelas..."
-    yield from ps(r'Set-ItemProperty "HKCU:\Control Panel\Desktop" WindowMetrics -15; Set-ItemProperty "HKCU:\Control Panel\Desktop" MinAnimate 0')
-    yield "Desativando efeitos de transparência..."
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize EnableTransparency 0')
-    yield "Desativando notificações de dicas..."
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SoftLandingEnabled 0; Set-ItemProperty HKCU:\Software\Policies\Microsoft\Windows\CloudContent DisableTailoredExperiences 1 -Force -ErrorAction SilentlyContinue')
+
+    # 🔹 Aplicar em todos os usuários padrão
+    usuarios = ["UFG", "Aluno", "Usuário"]
+    for usuario in usuarios:
+        ntuser_path = fr"C:\Users\{usuario}\NTUSER.DAT"
+        yield f"Aplicando configurações para o usuário {usuario}..."
+        yield from ps(fr'reg load HKU\TempHive "{ntuser_path}"')
+
+        # Ajuste de desempenho e opções visuais
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects VisualFXSetting 2')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced TaskbarAnimations 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\"Control Panel\Desktop" MinAnimate 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize EnableTransparency 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-310093Enabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SoftLandingEnabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackProgs 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackDocs 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackEnabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowRecentDocs 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_NotifyNewApps 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowFrequentPrograms 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowRecommendations 0')
+
+        yield from ps(r'reg unload HKU\TempHive')
+        yield f"Configurações aplicadas para o usuário {usuario}."
+
+    # 🔹 Ajustes globais (HKLM)
     yield "Ajustando prioridade de I/O do sistema..."
     yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl Win32PrioritySeparation 24')
+
     yield "Aumentando tamanho do cache de disco..."
     yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters MaxRawWorkItems 512')
-    
+
+    # 🔹 Desativar serviços do Xbox
     yield "Desativando serviços do Xbox..."
     for s in ["XboxGipSvc", "XboxNetApiSvc", "XblAuthManager", "XblGameSave"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
     yield "Serviços do Xbox desativados com sucesso."
 
+    # 🔹 Desativar serviços adicionais
     yield "Desativando serviços adicionais..."
     for s in ["WpcSvc", "WpcMonSvc", "DiagTrack", "DusmSvc", "GameInputSvc", "ScPolicySvc", "WbioSrvc", "BDESVC", "SCardSvr", "icssvc", "WerSvc", "SensorService", "PhoneSvc", "SysMain"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
-    
-    yield "Desativando opções do menu Iniciar..."
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackProgs 0')
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackDocs 0')
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_TrackEnabled 0')
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowRecentDocs 0')
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_NotifyNewApps 0')
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowFrequentPrograms 0')
-    yield from ps(r'Set-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowRecommendations 0')
-    yield "Todas as opções do menu Iniciar foram desativadas conforme configuração desejada."
+    yield "Todos os serviços adicionais foram desativados com sucesso."
 
+    # 🔹 Abrir Windows Update ao final
     yield "Abrindo o Windows Update..."
     yield from cmd("start ms-settings:windowsupdate", timeout=60)
-    yield "Todos os serviços adicionais foram desativados com sucesso."    
+    yield "✅ Ajuste completo concluído!"
 
 def forcar_atualizacao_gpos():
     """Força a atualização das Políticas de Grupo (gpupdate)."""
