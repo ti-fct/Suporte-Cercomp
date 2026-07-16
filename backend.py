@@ -619,6 +619,13 @@ def aplicar_tema_fct(caminho_tema):
     comandoWallpaperAjustar = "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name WallpaperStyle -Value 6; Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name TileWallpaper -Value 0"
     yield from executar_comando_powershell(comandoWallpaperAjustar)
 
+    yield "Definindo imagem da tela de bloqueio igual ao wallpaper..."
+    comandoLockScreen = fr"""
+    $wallpaper = (Get-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper).Wallpaper
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lock Screen" -Name Path -Value $wallpaper
+    """
+    yield from executar_comando_powershell(comandoLockScreen)
+
 def aplicar_gpos_fct(caminho_base_gpo):
     """Aplica as políticas de grupo (GPOs) da FCT usando lgpo.exe."""
     arquivos_necessarios = [
@@ -1002,7 +1009,7 @@ def limpar_pastas_usuario():
             
 def manutencao_preventiva_1_click(config):
     """Executa uma sequência de tarefas de manutenção preventiva."""
-    
+
     inicio = datetime.datetime.now()
 
     yield f"--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---\n⏰ Início: {inicio.strftime('%d/%m/%Y %H:%M:%S')}"
