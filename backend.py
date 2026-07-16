@@ -591,13 +591,28 @@ def aplicar_tema_fct(caminho_tema):
     yield "Aplicação de tema concluída."
     yield "Se a janela 'Personalização' abrir, pode fechá-la."
     
-    yield "Desativando luz noturna..."
-    comandoDesativarLuzNoturna = r"""
-    $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount\`$`$windows.data.bluelightreduction.bluelightreductions\Default"
-    if (Test-Path $path) {
-        Set-ItemProperty -Path $path -Name Data -Value ([byte[]](0x00)) -ErrorAction SilentlyContinue
-    }"""
-    yield from executar_comando_powershell(comandoDesativarLuzNoturna)
+    ps, cmd = executar_comando_powershell, executar_comando_cmd
+    usuarios = ["UFG", "Aluno", "Usuário"]
+    for usuario in usuarios:
+        ntuser_path = fr"C:\Users\{usuario}\NTUSER.DAT"
+        yield f"Aplicando configurações para o usuário {usuario}..."
+        yield from ps(fr'reg load HKU\TempHive "{ntuser_path}"')
+
+        # Desativar luz noturna
+        comandoDesativarLuzNoturna = r"""
+        $path = "HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\Cache\DefaultAccount\`$`$windows.data.bluelightreduction.bluelightreductions\Default"
+        if (Test-Path $path) {
+            Set-ItemProperty -Path $path -Name Data -Value ([byte[]](0x00)) -ErrorAction SilentlyContinue
+        }"""
+        yield "Desativando luz noturna..."
+        yield from ps(comandoDesativarLuzNoturna)
+
+        # Ajustar ícones da área de trabalho para tamanho médio
+        yield "Ajustando ícones da área de trabalho para tamanho médio..."
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\Shell\Bags\1\Desktop IconSize 32')
+
+        yield from ps(r'reg unload HKU\TempHive')
+        yield f"Configurações aplicadas para o usuário {usuario}."
 
     yield "Definindo wallpaper para 'Ajustar'..."
     comandoWallpaperAjustar = "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name WallpaperStyle -Value 6; Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name TileWallpaper -Value 0"
@@ -854,7 +869,7 @@ def ajustar_melhor_desempenho():
 
     yield "Iniciando ajuste para melhor desempenho..."
 
-    # 🔹 Aplicar em todos os usuários padrão
+    # Aplicar em todos os usuários padrão
     usuarios = ["UFG", "Aluno", "Usuário"]
     for usuario in usuarios:
         ntuser_path = fr"C:\Users\{usuario}\NTUSER.DAT"
@@ -875,6 +890,14 @@ def ajustar_melhor_desempenho():
         yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_NotifyNewApps 0')
         yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowFrequentPrograms 0')
         yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced Start_ShowRecommendations 0')
+
+        yield "Desativando recomendações e ofertas..."
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-338389Enabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-353694Enabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-353696Enabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-353698Enabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-353699Enabled 0')
+        yield from ps(r'Set-ItemProperty HKU:\TempHive\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager SubscribedContent-353700Enabled 0')
 
         yield from ps(r'reg unload HKU\TempHive')
         yield f"Configurações aplicadas para o usuário {usuario}."
