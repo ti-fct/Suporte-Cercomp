@@ -7,6 +7,7 @@ import winreg
 import ctypes
 import ftplib
 from urllib.parse import urlparse
+import datetime
 
 # --- Constantes de Configuração ---
 DIRETORIO_APP_DATA = r"C:\ProgramData\Suporte-Cercomp"
@@ -1001,6 +1002,10 @@ def limpar_pastas_usuario():
             
 def manutencao_preventiva_1_click(config):
     """Executa uma sequência de tarefas de manutenção preventiva."""
+    
+    inicio = datetime.datetime.now()
+
+    yield f"--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---\n⏰ Início: {inicio.strftime('%d/%m/%Y %H:%M:%S')}"
     yield "--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---"
     yield "\nPASSO 1/11: Baixando recursos da FCT..."
     yield from baixar_recursos_necessarios(config['URL_REPOSITORIO_FCT'])
@@ -1024,5 +1029,13 @@ def manutencao_preventiva_1_click(config):
     yield from resetar_microsoft_store()
     yield "\nPASSO 11/11: Habilitando ajuste de desempenho..."
     yield from ajustar_melhor_desempenho()
+
+    fim = datetime.datetime.now()
+    tempo_decorrido = fim - inicio
+
+    yield f"\n--- MANUTENÇÃO PREVENTIVA CONCLUÍDA ---"
+    yield f"⏰ Fim: {fim.strftime('%d/%m/%Y %H:%M:%S')}"
+    yield f"⏱️ Tempo total decorrido: {str(tempo_decorrido).split('.')[0]}"
+    yield "É recomendado reiniciar o computador para que todas as alterações tenham efeito."
     yield "\n--- MANUTENÇÃO PREVENTIVA CONCLUÍDA ---"
     yield "É recomendado reiniciar o computador para que todas as alterações tenham efeito."
