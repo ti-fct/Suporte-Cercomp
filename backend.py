@@ -688,7 +688,6 @@ def iniciar_limpeza_sistema(url_ferramenta):
         cleaners_to_run = [c for c in all_cleaners if not c.startswith("deep_scan.") and c != "system.free_disk_space"]
         yield f"{len(cleaners_to_run)} limpadores selecionados. AVISO: A limpeza pode demorar."
 
-        # Executar BleachBit
         yield "🧹 Executando limpeza com BleachBit..."
         subprocess.run([caminho_executavel, "--clean"] + cleaners_to_run, check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=600)
 
@@ -708,6 +707,8 @@ def iniciar_limpeza_sistema(url_ferramenta):
 
         yield "💾 Liberando espaço em disco com Cleanmgr..."
         yield from executar_comando_cmd("cleanmgr /sagerun:1", timeout=600)
+
+        yield from remover_aplicativos_indesejados()
 
         yield "✅ Limpeza completa concluída!"
     except Exception as e:
@@ -910,26 +911,22 @@ def ajustar_melhor_desempenho():
         yield from ps(r'reg unload HKU\TempHive')
         yield f"Configurações aplicadas para o usuário {usuario}."
 
-    # Ajustes globais (HKLM)
     yield "Ajustando prioridade de I/O do sistema..."
     yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl Win32PrioritySeparation 24')
 
     yield "Aumentando tamanho do cache de disco..."
     yield from ps(r'Set-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters MaxRawWorkItems 512')
 
-    # Desativar serviços do Xbox
     yield "Desativando serviços do Xbox..."
     for s in ["XboxGipSvc", "XboxNetApiSvc", "XblAuthManager", "XblGameSave"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
     yield "Serviços do Xbox desativados com sucesso."
 
-    # Desativar serviços adicionais
     yield "Desativando serviços adicionais..."
     for s in ["WpcSvc", "WpcMonSvc", "DiagTrack", "DusmSvc", "GameInputSvc", "ScPolicySvc", "WbioSrvc", "BDESVC", "SCardSvr", "icssvc", "WerSvc", "SensorService", "PhoneSvc", "SysMain"]:
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
     yield "Todos os serviços adicionais foram desativados com sucesso."
 
-    # Abrir Windows Update ao final
     yield "Abrindo o Windows Update..."
     yield from cmd("start ms-settings:windowsupdate", timeout=60)
     yield "✅ Ajuste completo concluído!"
@@ -1007,13 +1004,99 @@ def limpar_pastas_usuario():
         if os.path.exists(temp_file):
             os.remove(temp_file)
             
+def remover_aplicativos_indesejados():
+
+    yield "🗑️ Iniciando remoção de aplicativos indesejados"
+
+    apps_para_remover = {
+        "Xbox": [
+            "Microsoft.XboxApp", "Microsoft.GamingApp", "Microsoft.Xbox.TCUI",
+            "Microsoft.XboxGamingOverlay", "Microsoft.XboxGameOverlay",
+            "Microsoft.XboxIdentityProvider", "Microsoft.XboxSpeechToTextOverlay",
+        ],
+        "LinkedIn": ["Microsoft.LinkedIn", "*LinkedIn*"],
+        "Messenger": ["*Messenger*"],
+        "Facebook": ["*Facebook*"],
+        "Instagram": ["*Instagram*"],
+        "TikTok": ["BytedancePte.Ltd.TikTok", "*TikTok*"],
+        "Bing Finance": ["Microsoft.BingFinance"],
+        "Bing News": ["Microsoft.BingNews"],
+        "Twitter": ["9E2F88E3.Twitter", "*Twitter*"],
+        "Bing Sports": ["Microsoft.BingSports"],
+        "Bing Weather": ["Microsoft.BingWeather"],
+        "Bing FoodAndDrink": ["Microsoft.BingFoodAndDrink"],
+        "Bing Travel": ["Microsoft.BingTravel"],
+        "Mixed Reality": ["Microsoft.MixedReality.Portal"],
+        "3D Builder": ["Microsoft.3DBuilder"],
+        "Copilot": ["Microsoft.Copilot"],
+        "Cortana": ["Microsoft.549981C3F5F10"],
+        "Sticky Notes": ["Microsoft.MicrosoftStickyNotes"],
+        "Skype": ["Microsoft.SkypeApp"],
+        "Feedback Hub": ["Microsoft.WindowsFeedbackHub"],
+        "Maps": ["Microsoft.WindowsMaps"],
+        "Solitaire": ["Microsoft.MicrosoftSolitaireCollection"],
+        "Outlook": ["Microsoft.OutlookForWindows"],
+    }
+
+    yield f"{len(apps_para_remover)} aplicativos/categorias na lista de remoção."
+
+    padroes_unicos = sorted({padrao for padroes in apps_para_remover.values() for padrao in padroes})
+    lista_ps = ",".join(f'"{p}"' for p in padroes_unicos)
+
+    script_ps = f"""
+    $padroes = @({lista_ps})
+    $totalInstalados = 0
+    $totalProvisionados = 0
+
+    foreach ($padrao in $padroes) {{
+        try {{
+            $pacotesInstalados = Get-AppxPackage -AllUsers -Name $padrao -ErrorAction SilentlyContinue
+            foreach ($pacote in $pacotesInstalados) {{
+                try {{
+                    Remove-AppxPackage -Package $pacote.PackageFullName -AllUsers -ErrorAction Stop
+                    $totalInstalados++
+                    Write-Output "Removido (instalado, todos os usuarios): $($pacote.Name)"
+                }} catch {{
+                    Write-Output "AVISO: falha ao remover pacote instalado '$($pacote.Name)': $($_.Exception.Message)"
+                }}
+            }}
+        }} catch {{
+            Write-Output "AVISO: falha ao consultar pacotes instalados para '$padrao': $($_.Exception.Message)"
+        }}
+
+        try {{
+            $pacotesProvisionados = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object {{ $_.DisplayName -like $padrao }}
+            foreach ($pacote in $pacotesProvisionados) {{
+                try {{
+                    Remove-AppxProvisionedPackage -Online -PackageName $pacote.PackageName -ErrorAction Stop | Out-Null
+                    $totalProvisionados++
+                    Write-Output "Removido (provisionado, novos usuarios): $($pacote.DisplayName)"
+                }} catch {{
+                    Write-Output "AVISO: falha ao remover pacote provisionado '$($pacote.DisplayName)': $($_.Exception.Message)"
+                }}
+            }}
+        }} catch {{
+            Write-Output "AVISO: falha ao consultar pacotes provisionados para '$padrao': $($_.Exception.Message)"
+        }}
+    }}
+
+    Write-Output "RESUMO: $totalInstalados pacote(s) removido(s) dos perfis existentes; $totalProvisionados pacote(s) removido(s) do provisionamento (novos usuarios)."
+    """
+
+    yield "Removendo pacotes instalados (perfis existentes: UFG, Aluno, Usuário, etc.) e provisionados (novos usuários)..."
+    try:
+        yield from executar_comando_powershell(script_ps, timeout=300)
+    except Exception as e:
+        yield f"⚠️ ERRO CRÍTICO ao remover aplicativos indesejados: {e}"
+        return
+
+    yield "✅ Remoção de aplicativos indesejados concluída."
+
 def manutencao_preventiva_1_click(config):
-    """Executa uma sequência de tarefas de manutenção preventiva."""
 
     inicio = datetime.datetime.now()
 
     yield f"--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---\n⏰ Início: {inicio.strftime('%d/%m/%Y %H:%M:%S')}"
-    yield "--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---"
     yield "\nPASSO 1/11: Baixando recursos da FCT..."
     yield from baixar_recursos_necessarios(config['URL_REPOSITORIO_FCT'])
     yield "\nPASSO 2/11: Restaurando GPOs Padrão..."
@@ -1043,6 +1126,4 @@ def manutencao_preventiva_1_click(config):
     yield f"\n--- MANUTENÇÃO PREVENTIVA CONCLUÍDA ---"
     yield f"⏰ Fim: {fim.strftime('%d/%m/%Y %H:%M:%S')}"
     yield f"⏱️ Tempo total decorrido: {str(tempo_decorrido).split('.')[0]}"
-    yield "É recomendado reiniciar o computador para que todas as alterações tenham efeito."
-    yield "\n--- MANUTENÇÃO PREVENTIVA CONCLUÍDA ---"
-    yield "É recomendado reiniciar o computador para que todas as alterações tenham efeito."
+    yield  "🔄 É recomendado reiniciar o computador para que todas as alterações tenham efeito."
