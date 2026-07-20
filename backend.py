@@ -936,74 +936,7 @@ def forcar_atualizacao_gpos():
     yield "Forçando atualização das Políticas de Grupo (GPOs)..."
     yield from executar_comando_cmd("gpupdate /force", timeout=180)
     yield "Tentativa de atualização de GPO concluída."
-
-def limpar_pastas_usuario():
-    """Limpa as pastas Desktop e Downloads do usuário, lidando com acentos."""
-    yield "🧹 Iniciando limpeza de pastas do usuário..."
-    temp_file = os.path.join(os.environ['TEMP'], 'current_user.tmp')
-    # Comando PowerShell para salvar o nome de usuário em um arquivo com codificação UTF-8
-    comando_ps = f"(Get-CimInstance -ClassName Win32_ComputerSystem).Username | Out-File -FilePath '{temp_file}' -Encoding utf8 -NoNewline"
-    
-    try:
-        # Executa o comando para criar o arquivo
-        subprocess.run(
-            ["powershell", "-NoProfile", "-Command", comando_ps],
-            check=True, capture_output=True
-        )
-
-        # Lê o nome do usuário do arquivo com a codificação correta
-        if not os.path.exists(temp_file):
-            yield "⚠️ ERRO: Arquivo temporário de usuário não foi criado."
-            return
-            
-        with open(temp_file, 'r', encoding='utf-8') as f:
-            nome_usuario_completo = f.read().strip()
-
-        if not nome_usuario_completo:
-            yield "⚠️ ERRO: Não foi possível determinar o usuário logado."
-            return
-        
-        nome_usuario = nome_usuario_completo.split('\\')[-1]
-        yield f"Usuário ativo encontrado: {nome_usuario}"
-
-        caminho_base_usuario = os.path.join("C:\\Users", nome_usuario)
-        pastas_para_limpar = {
-            "Desktop": os.path.join(caminho_base_usuario, "Desktop"),
-            "Downloads": os.path.join(caminho_base_usuario, "Downloads")
-        }
-        itens_a_preservar = ('.lnk', '.url', '.ini')
-
-        for nome_pasta, caminho_pasta in pastas_para_limpar.items():
-            yield f"--- Limpando a pasta {nome_pasta} ---"
-            if not os.path.exists(caminho_pasta):
-                yield f"AVISO: Pasta não encontrada: {caminho_pasta}"
-                continue
-            for item in os.listdir(caminho_pasta):
-                caminho_completo = os.path.join(caminho_pasta, item)
-                if nome_pasta == "Desktop" and item.lower().endswith(itens_a_preservar):
-                    yield f"Preservando: {item}"
-                    continue
-                try:
-                    if os.path.isfile(caminho_completo) or os.path.islink(caminho_completo):
-                        os.unlink(caminho_completo)
-                    elif os.path.isdir(caminho_completo):
-                        shutil.rmtree(caminho_completo)
-                    yield f"Item removido: {item}"
-                except Exception as e:
-                    yield f"⚠️ ERRO ao remover '{item}': {e}"
-            yield f"Limpeza da pasta {nome_pasta} concluída."
-
-    except subprocess.CalledProcessError as e:
-        yield f"⚠️ ERRO CRÍTICO ao obter nome do usuário: {e}"
-        if e.stderr:
-            yield f"Detalhes do erro do PowerShell: {e.stderr.decode('utf-8', 'ignore')}"
-    except Exception as e:
-        yield f"⚠️ ERRO CRÍTICO ao limpar pastas do usuário: {e}"
-    finally:
-        # Garante que o arquivo temporário seja sempre removido
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
-            
+          
 def remover_aplicativos_indesejados():
 
     yield "🗑️ Iniciando remoção de aplicativos indesejados"
@@ -1097,27 +1030,25 @@ def manutencao_preventiva_1_click(config):
     inicio = datetime.datetime.now()
 
     yield f"--- INICIANDO MANUTENÇÃO PREVENTIVA COMPLETA ---\n⏰ Início: {inicio.strftime('%d/%m/%Y %H:%M:%S')}"
-    yield "\nPASSO 1/11: Baixando recursos da FCT..."
+    yield "\nPASSO 1/10: Baixando recursos da FCT..."
     yield from baixar_recursos_necessarios(config['URL_REPOSITORIO_FCT'])
-    yield "\nPASSO 2/11: Restaurando GPOs Padrão..."
+    yield "\nPASSO 2/10: Restaurando GPOs Padrão..."
     yield from restaurar_gpos_padrao()
-    yield "\nPASSO 3/11: Forçando Atualização de GPOs..."
+    yield "\nPASSO 3/10: Forçando Atualização de GPOs..."
     yield from forcar_atualizacao_gpos()
-    yield "\nPASSO 4/11: Limpeza Geral do Sistema..."
+    yield "\nPASSO 4/10: Limpeza Geral do Sistema..."
     yield from iniciar_limpeza_sistema(config['URL_BLEACHBIT'])
-    yield "\nPASSO 5/11: Limpando pastas do Usuário..."
-    yield from limpar_pastas_usuario()
-    yield "\nPASSO 6/11: Aplicando Tema Visual da FCT..."
+    yield "\nPASSO 5/10: Aplicando Tema Visual da FCT..."
     yield from aplicar_tema_fct(config['CAMINHO_TEMA'])
-    yield "\nPASSO 7/11: Aplicando GPOs da FCT..."
+    yield "\nPASSO 6/10: Aplicando GPOs da FCT..."
     yield from aplicar_gpos_fct(config['CAMINHO_BASE_GPO'])
-    yield "\nPASSO 8/11: Forçando atualização de GPO novamente..."
+    yield "\nPASSO 7/10: Forçando atualização de GPO novamente..."
     yield from instalar_antivirus_apex()
-    yield "\nPASSO 9/11: Verificando antivirus..."
+    yield "\nPASSO 8/10: Verificando antivirus..."
     yield from forcar_atualizacao_gpos()
-    yield "\nPASSO 10/11: Resetando a Microsoft Store..."
+    yield "\nPASSO 9/10: Resetando a Microsoft Store..."
     yield from resetar_microsoft_store()
-    yield "\nPASSO 11/11: Habilitando ajuste de desempenho..."
+    yield "\nPASSO 10/10: Habilitando ajuste de desempenho..."
     yield from ajustar_melhor_desempenho()
 
     fim = datetime.datetime.now()
