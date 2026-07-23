@@ -944,6 +944,16 @@ def ajustar_melhor_desempenho():
     for app in apps_pfn:
         yield from ps(fr'Set-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\{app} Disabled 1')
 
+    yield "Desabilitando inicialização automática de aplicativos..."
+    startup_apps = [
+        "MicrosoftEdgeUpdate",   # Edge
+        "OneDrive",              # OneDrive
+        "Copilot",               # Microsoft 365 Copilot
+        "YourPhone"              # Vincular ao Celular
+    ]
+    for app in startup_apps:
+        yield from ps(fr'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v {app} /t REG_SZ /d "" /f')
+
     yield "Abrindo o Windows Update..."
     yield from cmd("start ms-settings:windowsupdate", timeout=60)
     yield "✅ Ajuste completo concluído!"
