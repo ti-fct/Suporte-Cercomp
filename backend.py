@@ -954,6 +954,26 @@ def ajustar_melhor_desempenho():
     for app in startup_apps:
         yield from ps(fr'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v {app} /t REG_SZ /d "" /f')
 
+    yield "Ocultando ícone Reunir Agora..."
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v HideSCAMeetNow /t REG_DWORD /d 1 /f')
+
+    yield "Desligando notícias e interesses..."
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Feeds" /v ShellFeedsTaskbarViewMode /t REG_DWORD /d 2 /f')
+
+    yield "Desativando notificações e ações"
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 0 /f')
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v EnableScoobeExperience /t REG_DWORD /d 0 /f')
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v SubscribedContent-338388Enabled /t REG_DWORD /d 0 /f')
+
+    yield "Desativando controle por voz e reconhecimento de fala online..."
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy" /v HasAccepted /t REG_DWORD /d 0 /f')
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Speech_OneCore\Settings\VoiceActivation" /v VoiceActivationEnable /t REG_DWORD /d 0 /f')
+
+    yield "Desativando histórico de atividades..."
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\ActivityHistory" /v EnableActivityFeed /t REG_DWORD /d 0 /f')
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\ActivityHistory" /v PublishUserActivities /t REG_DWORD /d 0 /f')
+    yield from ps(r'reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\ActivityHistory" /v UploadUserActivities /t REG_DWORD /d 0 /f')
+
     yield "Abrindo o Windows Update..."
     yield from cmd("start ms-settings:windowsupdate", timeout=60)
     yield "✅ Ajuste completo concluído!"
