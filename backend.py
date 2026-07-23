@@ -927,6 +927,23 @@ def ajustar_melhor_desempenho():
         yield from ps(f'Stop-Service {s} -Force; Set-Service {s} -StartupType Disabled')
     yield "Todos os serviços adicionais foram desativados com sucesso."
 
+    yield "Desativando aplicativos em segundo plano..."
+    apps_pfn = [
+        "Microsoft.WindowsTips_8wekyb3d8bbwe",              # Dicas
+        "microsoft.windowscommunicationsapps_8wekyb3d8bbwe",# Email e calendário
+        "Microsoft.ZuneVideo_8wekyb3d8bbwe",                # Filmes e TV
+        "Microsoft.Copilot_8wekyb3d8bbwe",                  # Copilot
+        "Microsoft.GetHelp_8wekyb3d8bbwe",                  # Obter ajuda
+        "Microsoft.Office.OneNote_8wekyb3d8bbwe",           # OneNote
+        "Microsoft.MSPaint_8wekyb3d8bbwe",                  # Paint 3D
+        "Microsoft.Print3D_8wekyb3d8bbwe",                  # Print 3D
+        "Microsoft.Sway_8wekyb3d8bbwe",                     # Sway
+        "Microsoft.YourPhone_8wekyb3d8bbwe",                # Vincular ao Celular
+        "Microsoft.Microsoft3DViewer_8wekyb3d8bbwe"         # Visualizador 3D
+    ]
+    for app in apps_pfn:
+        yield from ps(fr'Set-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications\{app} Disabled 1')
+
     yield "Abrindo o Windows Update..."
     yield from cmd("start ms-settings:windowsupdate", timeout=60)
     yield "✅ Ajuste completo concluído!"
