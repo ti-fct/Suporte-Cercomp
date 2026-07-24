@@ -705,6 +705,9 @@ def iniciar_limpeza_sistema(url_ferramenta):
         yield from executar_comando_powershell(r'Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue')
         yield from executar_comando_powershell(r'Remove-Item -Path "C:\Windows\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue')
 
+        yield "Esvaziando lixeira..."
+        yield from executar_comando_powershell(r"""rd /s /q C:\$Recycle.Bin""")
+
         yield "💾 Liberando espaço em disco com Cleanmgr..."
         yield from executar_comando_cmd("cleanmgr /sagerun:1", timeout=600)
 
