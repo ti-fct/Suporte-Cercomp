@@ -1006,7 +1006,6 @@ def forcar_atualizacao_gpos():
     yield "Tentativa de atualização de GPO concluída."
           
 def remover_aplicativos_indesejados():
-
     yield "🗑️ Iniciando remoção de aplicativos indesejados"
 
     apps_para_remover = {
@@ -1015,28 +1014,28 @@ def remover_aplicativos_indesejados():
             "Microsoft.XboxGamingOverlay", "Microsoft.XboxGameOverlay",
             "Microsoft.XboxIdentityProvider", "Microsoft.XboxSpeechToTextOverlay",
         ],
-        "LinkedIn": ["Microsoft.LinkedIn", "*LinkedIn*"],
+        "LinkedIn": ["*LinkedIn*"],
         "Messenger": ["*Messenger*"],
         "Facebook": ["*Facebook*"],
         "Instagram": ["*Instagram*"],
-        "TikTok": ["BytedancePte.Ltd.TikTok", "*TikTok*"],
-        "Bing Finance": ["Microsoft.BingFinance"],
-        "Bing News": ["Microsoft.BingNews"],
-        "Twitter": ["9E2F88E3.Twitter", "*Twitter*"],
-        "Bing Sports": ["Microsoft.BingSports"],
-        "Bing Weather": ["Microsoft.BingWeather"],
-        "Bing FoodAndDrink": ["Microsoft.BingFoodAndDrink"],
-        "Bing Travel": ["Microsoft.BingTravel"],
-        "Mixed Reality": ["Microsoft.MixedReality.Portal"],
-        "3D Builder": ["Microsoft.3DBuilder"],
-        "Copilot": ["Microsoft.Copilot"],
+        "TikTok": ["*TikTok*"],
+        "Bing Finance": ["*BingFinance*"],
+        "Bing News": ["*BingNews*"],
+        "Twitter": ["*Twitter*"],
+        "Bing Sports": ["*BingSports*"],
+        "Bing Weather": ["*BingWeather*"],
+        "Bing FoodAndDrink": ["*BingFoodAndDrink*"],
+        "Bing Travel": ["*BingTravel*"],
+        "Mixed Reality": ["*MixedReality*"],
+        "3D Builder": ["*3DBuilder*"],
+        "Copilot": ["*Copilot*"],
         "Cortana": ["Microsoft.549981C3F5F10"],
-        "Sticky Notes": ["Microsoft.MicrosoftStickyNotes"],
-        "Skype": ["Microsoft.SkypeApp"],
-        "Feedback Hub": ["Microsoft.WindowsFeedbackHub"],
-        "Maps": ["Microsoft.WindowsMaps"],
-        "Solitaire": ["Microsoft.MicrosoftSolitaireCollection"],
-        "Outlook": ["Microsoft.OutlookForWindows"],
+        "Sticky Notes": ["*StickyNotes*"],
+        "Skype": ["*SkypeApp*"],
+        "Feedback Hub": ["*FeedbackHub*"],
+        "Maps": ["*WindowsMaps*"],
+        "Solitaire": ["*SolitaireCollection*"],
+        "Outlook": ["*Outlook*"],
     }
 
     yield f"{len(apps_para_remover)} aplicativos/categorias na lista de remoção."
@@ -1051,7 +1050,8 @@ def remover_aplicativos_indesejados():
 
     foreach ($padrao in $padroes) {{
         try {{
-            $pacotesInstalados = Get-AppxPackage -AllUsers -Name $padrao -ErrorAction SilentlyContinue
+            # Buscar pacotes instalados com suporte a curingas
+            $pacotesInstalados = Get-AppxPackage -AllUsers | Where-Object {{ $_.Name -like $padrao }}
             foreach ($pacote in $pacotesInstalados) {{
                 try {{
                     Remove-AppxPackage -Package $pacote.PackageFullName -AllUsers -ErrorAction Stop
@@ -1066,7 +1066,8 @@ def remover_aplicativos_indesejados():
         }}
 
         try {{
-            $pacotesProvisionados = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object {{ $_.DisplayName -like $padrao }}
+            # Buscar pacotes provisionados com suporte a curingas
+            $pacotesProvisionados = Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -like $padrao }}
             foreach ($pacote in $pacotesProvisionados) {{
                 try {{
                     Remove-AppxProvisionedPackage -Online -PackageName $pacote.PackageName -ErrorAction Stop | Out-Null
@@ -1082,16 +1083,46 @@ def remover_aplicativos_indesejados():
     }}
 
     Write-Output "RESUMO: $totalInstalados pacote(s) removido(s) dos perfis existentes; $totalProvisionados pacote(s) removido(s) do provisionamento (novos usuarios)."
+
+    # Remoção de jogos Win32 (Steam, Roblox, Epic Games, Battle.net, Riot Client)
+    $jogos = @("Steam", "Roblox", "Epic Games Launcher", "Battle.net", "Riot Client")
+    foreach ($jogo in $jogos) {{
+        try {{
+            # Primeiro tenta via Win32_Product
+            $programas = Get-WmiObject -Class Win32_Product | Where-Object {{ $_.Name -like "*$jogo*" }}
+            foreach ($prog in $programas) {{
+                try {{
+                    $prog.Uninstall() | Out-Null
+                    Write-Output "Removido (Win32 MSI): $($prog.Name)"
+                }} catch {{
+                    Write-Output "AVISO: falha ao remover jogo '$($prog.Name)': $($_.Exception.Message)"
+                }}
+            }}
+
+            # Se não encontrado, tenta via Get-Package (mais moderno)
+            $pacotes = Get-Package | Where-Object {{ $_.Name -like "*$jogo*" }}
+            foreach ($pkg in $pacotes) {{
+                try {{
+                    $pkg.Provider.UninstallPackage($pkg) | Out-Null
+                    Write-Output "Removido (Get-Package): $($pkg.Name)"
+                }} catch {{
+                    Write-Output "AVISO: falha ao remover pacote '$($pkg.Name)': $($_.Exception.Message)"
+                }}
+            }}
+        }} catch {{
+            Write-Output "AVISO: falha ao consultar programas instalados para '$jogo': $($_.Exception.Message)"
+        }}
+    }}
     """
 
-    yield "Removendo pacotes instalados (perfis existentes: UFG, Aluno, Usuário, etc.) e provisionados (novos usuários)..."
+    yield "Removendo pacotes instalados e provisionados, além de jogos Win32 (Steam, Roblox, Epic Games, Battle.net, Riot Client)..."
     try:
-        yield from executar_comando_powershell(script_ps, timeout=300)
+        yield from executar_comando_powershell(script_ps, timeout=900)
     except Exception as e:
-        yield f"⚠️ ERRO CRÍTICO ao remover aplicativos indesejados: {e}"
+        yield f"⚠️ ERRO CRÍTICO ao remover aplicativos/jogos indesejados: {e}"
         return
 
-    yield "✅ Remoção de aplicativos indesejados concluída."
+    yield "✅ Remoção de aplicativos e jogos indesejados concluída."
 
 def manutencao_preventiva_1_click(config):
 
