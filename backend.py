@@ -601,7 +601,7 @@ def aplicar_tema_fct(caminho_tema):
         if not os.path.exists(user_dir):
             yield f"⚠️ Usuário {usuario} não encontrado, pulando..."
             continue
-        
+
         yield f"Aplicando configurações para o usuário {usuario}..."
         yield from ps(fr'reg load HKU\TempHive "{ntuser_path}"')
 
@@ -613,6 +613,7 @@ def aplicar_tema_fct(caminho_tema):
         }"""
         yield "Desativando luz noturna..."
         yield from ps(comandoDesativarLuzNoturna)
+        yield from ps(r'reg add "HKCU\Software\Policies\Microsoft\Windows\NightLight" /v Enabled /t REG_DWORD /d 0 /f')
 
         # Ajustar ícones da área de trabalho para tamanho médio
         yield "Ajustando ícones da área de trabalho para tamanho médio..."
