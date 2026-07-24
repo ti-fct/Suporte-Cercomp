@@ -595,7 +595,13 @@ def aplicar_tema_fct(caminho_tema):
     ps, cmd = executar_comando_powershell, executar_comando_cmd
     usuarios = ["UFG", "Aluno", "Usuário"]
     for usuario in usuarios:
-        ntuser_path = fr"C:\Users\{usuario}\NTUSER.DAT"
+        user_dir = fr"C:\Users\{usuario}"
+        ntuser_path = os.path.join(user_dir, "NTUSER.DAT")
+
+        if not os.path.exists(user_dir):
+            yield f"⚠️ Usuário {usuario} não encontrado, pulando..."
+            continue
+        
         yield f"Aplicando configurações para o usuário {usuario}..."
         yield from ps(fr'reg load HKU\TempHive "{ntuser_path}"')
 
@@ -696,6 +702,10 @@ def iniciar_limpeza_sistema(url_ferramenta):
         for usuario in usuarios:
             yield f"🧹 Limpando pastas do usuário {usuario}..."
             user_dir = fr"C:\Users\{usuario}"
+
+            if not os.path.exists(user_dir):
+                yield f"⚠️ Usuário {usuario} não encontrado, pulando..."
+                continue
 
             yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\AppData\Local\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue')
             yield from executar_comando_powershell(fr'Remove-Item -Path "{user_dir}\AppData\Roaming\Microsoft\Windows\Recent\*" -Recurse -Force -ErrorAction SilentlyContinue')
@@ -885,7 +895,13 @@ def ajustar_melhor_desempenho():
     # Aplicar em todos os usuários padrão
     usuarios = ["UFG", "Aluno", "Usuário"]
     for usuario in usuarios:
-        ntuser_path = fr"C:\Users\{usuario}\NTUSER.DAT"
+        user_dir = fr"C:\Users\{usuario}"
+        ntuser_path = os.path.join(user_dir, "NTUSER.DAT")
+
+        if not os.path.exists(user_dir):
+            yield f"⚠️ Usuário {usuario} não encontrado, pulando..."
+            continue
+
         yield f"Aplicando configurações para o usuário {usuario}..."
         yield from ps(fr'reg load HKU\TempHive "{ntuser_path}"')
 
