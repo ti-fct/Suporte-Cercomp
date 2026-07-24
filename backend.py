@@ -707,6 +707,7 @@ def iniciar_limpeza_sistema(url_ferramenta):
 
         yield "Esvaziando lixeira..."
         yield from executar_comando_powershell(r"""rd /s /q C:\$Recycle.Bin""")
+        yield from executar_comando_powershell(r"""Remove-Item -Path "$env:SystemDrive\$Recycle.Bin\*" -Recurse -Force -ErrorAction SilentlyContinue""")
 
         yield "💾 Liberando espaço em disco com Cleanmgr..."
         yield from executar_comando_cmd("cleanmgr /sagerun:1", timeout=600)
